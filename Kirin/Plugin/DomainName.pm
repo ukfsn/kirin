@@ -297,7 +297,6 @@ sub process {
     }
 
     my $domain = $op->{domain};
-    warn Dumper($op->{rv});
 
     my $mm = undef; 
     my $r = $self->_get_reghandle($mm, $tld_handler->registrar);

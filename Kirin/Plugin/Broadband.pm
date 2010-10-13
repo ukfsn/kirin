@@ -25,15 +25,16 @@ sub view {
     if (! $bb) { $self->list($mm); return; }
 
     my %details = eval { 
-        $bb->provider_handle->service_view('service-id' => $self->token);
+        $bb->provider_handle->service_view('service-id' => $bb->token);
     };
 
     if ($@) {
+        warn $@;
         $mm->message('We are currently unable to retrieve details for this service.');
     }
 
     my $service = { bb => $bb, details => \%details };
-    return $mm->respond('plugins/broadband/view', service => $service);
+    return $mm->respond('plugins/broadband/'.$bb->service->provider.'/view', service => $service);
 }
 
 sub order {
@@ -58,7 +59,7 @@ sub order {
             cli => $clid,
             defined $mac ? (mac => $mac) : ()
         );
-        # Present list of available services, activation date.
+        # Present list of available services, activation date. XXX
         return $mm->respond('plugins/broadband/signup',
             services => \%avail);
 
@@ -348,6 +349,7 @@ sub provider_handle {
     my $p = shift || $self->service->provider;
     my $module = "Net::DSLProvider::".ucfirst($p);
     $module->require or die "Can't find a provider module for $p:$@";
+
     $module->new({ 
         user     => Kirin->args->{"${p}_username"},
         pass     => Kirin->args->{"${p}_password"},

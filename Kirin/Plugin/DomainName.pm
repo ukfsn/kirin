@@ -623,8 +623,7 @@ sub delete {
     my $registered = undef;
     eval { $registered = $handle->domain_info($domain->domain); };
     if ( $registered ) {
-        # XXX check whether the domain is actually still registered with us.
-        #     if so do NOT delete it
+        $mm->message("You cannot delete a domain that is still registered through us");
     }
     else {
         $domain->delete;

@@ -55,10 +55,25 @@ sub order {
         } 
 
         # XXX
-        my %avail = $murphx->services_available(
+        my %avail = ();
+        my @services = $murphx->services_available(
             cli => $clid,
+            qualification => 1,
             defined $mac ? (mac => $mac) : ()
         );
+        my $qdata = shift @services; # $qdata is a hashref of BTW servicesa
+
+        # XXX Deal with the qdata and offer BT based services for non-Murphx providers
+
+        foreach my $service (@services) {
+            my $s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
+            next if ! $s;   # Only offer services we actually sell!
+            $avail{$s->id} = {
+                service => $s->name,
+                price => $s->price
+            };
+        }
+
         # Present list of available services, activation date. XXX
         return $mm->respond('plugins/broadband/signup',
             services => \%avail);

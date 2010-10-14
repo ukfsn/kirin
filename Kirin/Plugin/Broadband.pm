@@ -54,23 +54,34 @@ sub order {
             return $mm->respond('plugins/broadband/get-clid');
         } 
 
-        # XXX
         my %avail = ();
+
+        use Net::DSLProvider::Murphx;
+        my $p = "murphx";
+        $murphx = Net::DSLProvider::Murphx->new({ 
+            user     => Kirin->args->{"${p}_username"},
+            pass     => Kirin->args->{"${p}_password"},
+            clientid => Kirin->args->{"${p}_clientid"},
+            debug       => 1, 
+        });
+
         my @services = $murphx->services_available(
             cli => $clid,
             qualification => 1,
             defined $mac ? (mac => $mac) : ()
         );
-        my $qdata = shift @services; # $qdata is a hashref of BTW servicesa
+
+        my $qdata = shift @services; # $qdata is a hashref of BTW services
 
         # XXX Deal with the qdata and offer BT based services for non-Murphx providers
 
         foreach my $service (@services) {
-            my $s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
-            next if ! $s;   # Only offer services we actually sell!
-            $avail{$s->id} = {
-                service => $s->name,
-                price => $s->price
+            my @s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
+            next if ! @s;   # Only offer services we actually sell!
+            $avail{$s[0]->id} = {
+                name => $s[0]->name,
+                price => $s[0]->price,
+                firstcrd => $service->{first_date},
             };
         }
 

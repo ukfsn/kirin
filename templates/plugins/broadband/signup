@@ -4,8 +4,8 @@
 <form method="post">
 <input type="hidden" name="clid" value="[%clid|html%]">
 <p> Service: <select name="service">
-[% SET k = "product-name"; FOR s=services.keys %]
-    <option value="[% s |html%]">[% services.$s.$k%]</option>
+[% SET k = "name"; FOR s=services.keys %]
+    <option value="[% s |html%]">[% services.$s.$k%] - &pound; [% services.$s.price %] - Earliest Order Date: [% services.$s.firstcrd %]</option>
 [% END %]
 </select>
 </form>

@@ -1,14 +1,23 @@
 [% IF services.size > 0 %]
 <h2>Sign up for broadband</h2>
 
+<table>
+<tr><th>Service</th><th>Price</th><th>Estimated Speed</th><th>Select Install Date</th></tr>
+
+[% SET k = "description"; FOR s=services.keys %]
 <form method="post">
 <input type="hidden" name="clid" value="[%clid|html%]">
-<p> Service: <select name="service">
-[% SET k = "name"; FOR s=services.keys %]
-    <option value="[% s |html%]">[% services.$s.$k%] - &pound; [% services.$s.price %] - Earliest Order Date: [% services.$s.firstcrd %]</option>
-[% END %]
-</select>
+<input type="hidden" name="id" value="[%services.$s.id|html%]">
+<tr>
+<td>[% k %]</td>
+<td>&pound; [% services.$s.price %] + VAT</td>
+<td>[% services.$s.speed %]</td>
+<td><select name="crd">
+    <option value="[% services.$s.crd |html %]">[% services.$s.crd %]</option>
+</select></td>
+</tr>
 </form>
+[% END %]
 
 [% ELSE %]
 <h2> Sorry </h2>

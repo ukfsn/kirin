@@ -55,16 +55,7 @@ sub order {
         } 
 
         my %avail = ();
-
-        use Net::DSLProvider::Murphx;
-        my $p = "murphx";
-        $murphx = Net::DSLProvider::Murphx->new({ 
-            user     => Kirin->args->{"${p}_username"},
-            pass     => Kirin->args->{"${p}_password"},
-            clientid => Kirin->args->{"${p}_clientid"},
-            debug       => 1, 
-        });
-
+        my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
         my @services = $murphx->services_available(
             cli => $clid,
             qualification => 1,
@@ -72,18 +63,55 @@ sub order {
         );
 
         my $qdata = shift @services; # $qdata is a hashref of BTW services
-
         # XXX Deal with the qdata and offer BT based services for non-Murphx providers
+        # We need to verify whether we can supply 2plus (annex m?) and fttc services
+        # This part is very Enta specific
+        my $entaspeeds = { ra8 => {
+            description => 'ADSL Up to 8Mb/s',
+            speed => $qdata->{'max'}->{'down_speed'}
+            }
+        };
+        if ( $qdata->{'2plus'} ) {
+            $entaspeeds->{'ra24'} = {
+                description => 'ADSL2+ Up to 24Mb/s',
+                speed => $qdata->{'2plus'}->{'down_speed'},
+            };
+            if ( $qdata->{'2plus'}->{'annexm'} ) {
+                $entaspeeds->{'ra24'}->{'annex_m'} = $qdata->{'2plus'}->{'annexm'};
+            }
+        }
+        if ( $qdata->{'fttc'} ) {
+            $entaspeeds->{'fttc'} = {
+                description => 'FTTC Up to 40Mb/s',
+                speed => $qdata->{'fttc'}->{'down_speed'},
+                upspeed => $qdata->{'fttc'}->{'up_speed'}
+            };
+        }
+
+        # This part is also Enta specific
+        my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
+        foreach ( @enta_services ) {
+            $avail{$_->name} = {
+                id => $_->id,
+                crd => $self->_dates($qdata->{classic}->{first_date}),
+                price => $_->price,
+                speeds => $entaspeeds,
+            };
+        }
 
         foreach my $service (@services) {
             my @s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
             next if ! @s;   # Only offer services we actually sell!
-            $avail{$s[0]->id} = {
-                name => $s[0]->name,
+            $avail{$s[0]->name} = {
+                id => $s[0]->id,
+                crd => $self->_dates($service->{first_date}),
                 price => $s[0]->price,
-                firstcrd => $service->{first_date},
+                speed => $service->{max_speed},
             };
         }
+
+        # XXX If there are to be services from other suppliers code may need
+        #     to be added for it.
 
         # Present list of available services, activation date. XXX
         return $mm->respond('plugins/broadband/signup',
@@ -356,7 +384,12 @@ sub _setup_db {
 }
 
 sub _dates {
+    my $self = shift;
+    my $first_date = shift;
     my $start = Time::Piece->new() + ONE_WEEK;
+    if ( $first_date ) {
+        $start = Time::Piece->strptime($first_date, "%F");
+    }
     my $end = $start + ONE_MONTH;
     my @dates;
     while ( $start < $end ) {

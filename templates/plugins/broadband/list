@@ -1,16 +1,19 @@
 <h2> Your Broadband Services </h2>
 
+<a href="/broadband/order"><h4>Order a new ADSL broadband connection</h4></a>
+
 [% IF bbs.size > 0 %]
 <table>
-<tr><th>Telephone Line</th><th>Service</th><th>Network</th><th>Status</th><th></th></tr>
+<tr><th>Telephone Line</th><th>Service</th><th>Network</th><th>Service Reference</th><th>Status</th><th></th></tr>
 [% FOR b = bbs %]
 <tr>
 <td>[%b.telno%]</td>
 <td>[%b.service.name%]</td>
 <td>[%b.service.provider%]</td>
+<td>[%b.token%]</td>
 <td>[%b.status%]</td>
 <td>
-<form action="/broadband/view/[%b.id%]" method="post"><input type="submit" value="View Details"></form>
+<form action="/broadband/view/[%b.id%]" method="post"><input type="submit" value="Manage Service"></form>
 </td>
 </tr>
 [% END %]

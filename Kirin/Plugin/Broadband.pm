@@ -91,7 +91,8 @@ sub order {
         # This part is also Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
-            $avail{$_->name} = {
+            $avail{$_->sortorder} = {
+                name => $_->name,
                 id => $_->id,
                 crd => $self->_dates($qdata->{classic}->{first_date}),
                 price => $_->price,
@@ -102,7 +103,8 @@ sub order {
         foreach my $service (@services) {
             my @s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
             next if ! @s;   # Only offer services we actually sell!
-            $avail{$s[0]->name} = {
+            $avail{$s[0]->sortorder} = {
+                name => $s[0]->name,
                 id => $s[0]->id,
                 crd => $self->_dates($service->{first_date}),
                 price => $s[0]->price,
@@ -329,7 +331,7 @@ sub admin {
     my $id = undef;
 
     if ($mm->param('create')) {
-        for (qw/name code provider price/) {
+        for (qw/name code provider price sortorder/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
@@ -343,7 +345,7 @@ sub admin {
     elsif ($id = $mm->param('editproduct')) {
         my $product = Kirin::DB::BroadbandService->retrieve($id);
         if ( $product ) {
-            for (qw/name code provider price/) {
+            for (qw/name code provider price sortorder/) {
                 $product->$_($mm->param($_));
             }
             $product->update();
@@ -511,7 +513,8 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     provider varchar(255),
     code varchar(255),
     name varchar(255),
-    price decimal(5,2)
+    price decimal(5,2),
+    sortorder integer
 );
 /}
 1;

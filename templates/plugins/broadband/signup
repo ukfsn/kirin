@@ -4,13 +4,12 @@
 <table>
 <tr><th>Service</th><th>Price</th><th>Estimated Speed</th><th>Select Install Date</th><th>Select Service</th></tr>
 
-
-[% FOR s=services.sort %]
+[% FOR s=services.nsort %]
     <form method="post">
     <input type="hidden" name="clid" value="[%clid|html%]">
     <input type="hidden" name="id" value="[%services.$s.id|html%]">
     <tr>
-    <td>[% s %]</td>
+    <td>[% services.$s.name %]</td>
     <td>&pound; [% services.$s.price %] + VAT</td>
     <td>[% services.$s.speed %]</td>
     <td><select name="crd">

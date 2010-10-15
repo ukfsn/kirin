@@ -1,6 +1,6 @@
 <h2>Broadband Products</h2>
 <table>
-<tr><th>Name</th><th>Provide Name</th><th>Provider</th><th>Price</th></tr>
+<tr><th>Name</th><th>Provide Name</th><th>Provider</th><th>Price</th><th>Sort Order</th></tr>
 [% FOR p = products %]
 <tr>
     <form method="post">
@@ -9,6 +9,7 @@
     <td> <input name="code" value="[%p.code%]"> </td>
     <td> <input name="provider" value="[%p.provider%]"> </td>
     <td> <input name="price" value="[%p.price%]"> </td>
+    <td> <input name="sortorder" value="[%p.sortorder%]"> </td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
     <form method="post">

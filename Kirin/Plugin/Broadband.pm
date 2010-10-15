@@ -87,7 +87,7 @@ sub order {
                 upspeed => $qdata->{'fttc'}->{'up_speed'}
             };
         }
-
+   
         # This part is also Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
@@ -393,7 +393,7 @@ sub _dates {
     my $end = $start + ONE_MONTH;
     my @dates;
     while ( $start < $end ) {
-        push @dates, $start->new($start) # Make a copy
+        push @dates, $start->epoch
             unless ($start->wday == 1 || $start->wday == 7) 
                     || is_holiday($start->ymd);
         $start += ONE_DAY;

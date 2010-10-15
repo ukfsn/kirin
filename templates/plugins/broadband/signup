@@ -2,21 +2,26 @@
 <h2>Sign up for broadband</h2>
 
 <table>
-<tr><th>Service</th><th>Price</th><th>Estimated Speed</th><th>Select Install Date</th></tr>
+<tr><th>Service</th><th>Price</th><th>Estimated Speed</th><th>Select Install Date</th><th>Select Service</th></tr>
 
-[% SET k = "description"; FOR s=services.keys %]
-<form method="post">
-<input type="hidden" name="clid" value="[%clid|html%]">
-<input type="hidden" name="id" value="[%services.$s.id|html%]">
-<tr>
-<td>[% k %]</td>
-<td>&pound; [% services.$s.price %] + VAT</td>
-<td>[% services.$s.speed %]</td>
-<td><select name="crd">
-    <option value="[% services.$s.crd |html %]">[% services.$s.crd %]</option>
-</select></td>
-</tr>
-</form>
+
+[% FOR s=services.sort %]
+    <form method="post">
+    <input type="hidden" name="clid" value="[%clid|html%]">
+    <input type="hidden" name="id" value="[%services.$s.id|html%]">
+    <tr>
+    <td>[% s %]</td>
+    <td>&pound; [% services.$s.price %] + VAT</td>
+    <td>[% services.$s.speed %]</td>
+    <td><select name="crd">
+        [% USE date %]
+        [% FOR t IN services.$s.crd %]
+            <option value="[% date.format(t, "%Y-%m-%d") |html %]">[% date.format(t, "%e %B %Y") %]</option>
+        [% END %]
+    </select></td>
+    <td><input type="submit" value="Select" name="Select"></td>
+    </tr>
+    </form>
 [% END %]
 
 [% ELSE %]

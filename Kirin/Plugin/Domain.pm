@@ -35,6 +35,12 @@ sub _validate {
         $mm->message("Domain name malformed"); return;
     }
 
+    my @already = Kirin::DB::Domain->search(domainname => $dn);
+    if (@already) {
+        $mm->message("That domain belongs to someone else. If you believe this not to be the case please contact customer suppoer");
+        return;
+    }
+
     my $res = Net::DNS::Resolver->new;
     my $query = $res->query($dn, "NS");
     if (!$query) {

@@ -87,7 +87,7 @@ sub order {
                 upspeed => $qdata->{'fttc'}->{'up_speed'}
             };
         }
-   
+
         # This part is also Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
@@ -120,11 +120,22 @@ sub order {
             services => \%avail);
 
     stage_2:
-        # Decode service XXX
-        my $provider = "Murphx"; # XXX;
-        my $handle = Kirin::DB::Broadband->provider_handle($provider);
+        # Decode service and present T&C XXX 
+        # Previous step must supply service id, crd, ip address requirement + any special options
+        my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
+        if ( ! $service ) {
+            $mm->param('Please select from the available services');
+            goto stage_1;
+        }
+        # verify that the selected crd is valid
+
+        # Is the IP address selection OK?
+
+        # Other options?
+
+        # OK by this stage we have a valid order. Now onto T&C
         return $mm->respond('plugins/broadband/terms-and-conditions',
-            tandc => $handle->terms_and_conditions()
+            provider => $service->provider
         );
 
     stage_3:
@@ -132,7 +143,14 @@ sub order {
             $mm->param('Please accept the terms and conditions to complete your order'); 
             goto stage_2;
         }
-        # make the order XXX
+        # make the order XXX 
+}
+
+sub process {
+    # XXX This is what does the actual placing of orders with providers
+    #     once the invoice has been paid or the order is otherwise ready
+    #     to be placed.
+
 }
 
 sub request_mac {
@@ -514,7 +532,8 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     code varchar(255),
     name varchar(255),
     price decimal(5,2),
-    sortorder integer
+    sortorder integer,
+    options text
 );
 /}
 1;

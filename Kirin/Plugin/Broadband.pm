@@ -66,7 +66,7 @@ sub order {
         my %avail = ();
         my @services = ();
 
-        if ( ! $search->result || $search->timestamp < (time() - 86400) ) {
+        if ( ! $search->result || $search->timestamp < (time() - 2400) ) {
             my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
             @services = $murphx->services_available(
                 cli => $clid,
@@ -112,6 +112,7 @@ sub order {
         # This part is also Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
+            next if $_->name =~ /FTTC/ && ! $entaspeeds->{'fttc'};
             $avail{$_->sortorder} = {
                 name => $_->name,
                 id => $_->id,

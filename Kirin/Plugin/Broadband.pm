@@ -2,6 +2,7 @@ package Kirin::Plugin::Broadband;
 use Time::Piece;
 use Time::Seconds;
 use Date::Holidays::EnglandWales;
+use JSON;
 use strict;
 use base 'Kirin::Plugin';
 use Net::DSLProvider;
@@ -9,6 +10,8 @@ sub user_name      { "Broadband" }
 sub default_action { "list" }
 use constant MAC_RE => qr/[A-Z0-9]{12,14}\/[A-Z]{2}[0-9]{2}[A-Z]/;
 my $murphx;
+
+my $json = JSON->new->allow_blessed;
 
 sub list {
     my ($self, $mm) = @_;
@@ -54,15 +57,33 @@ sub order {
             return $mm->respond('plugins/broadband/get-clid');
         } 
 
+        # Have we run an availability check for this lately?
+        my $search = Kirin::DB::BroadbandSearches->find_or_create( {
+            customer => $mm->{customer},
+            telno => $clid
+        } );
+
         my %avail = ();
-        my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
-        my @services = $murphx->services_available(
-            cli => $clid,
-            qualification => 1,
-            defined $mac ? (mac => $mac) : ()
-        );
+        my @services = ();
+
+        if ( ! $search->result || $search->timestamp < (time() - 86400) ) {
+            my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
+            @services = $murphx->services_available(
+                cli => $clid,
+                qualification => 1,
+                defined $mac ? (mac => $mac) : ()
+            );
+
+            $search->result = $json->encode(@services);
+            $search->timestamp = time();
+            $search->update;
+        }
+        else {
+            @services = $json->decode($search->result);
+        }
 
         my $qdata = shift @services; # $qdata is a hashref of BTW services
+
         # XXX Deal with the qdata and offer BT based services for non-Murphx providers
         # We need to verify whether we can supply 2plus (annex m?) and fttc services
         # This part is very Enta specific
@@ -143,7 +164,12 @@ sub order {
             $mm->param('Please accept the terms and conditions to complete your order'); 
             goto stage_2;
         }
-        # make the order XXX 
+        # XXX check that the order is valid
+
+        # Record the order
+
+        # Process if the provider handles billing.
+
 }
 
 sub process {
@@ -393,6 +419,7 @@ sub _setup_db {
     Kirin::DB::Broadband->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Broadband->has_a(service => "Kirin::DB::BroadbandService");
     Kirin::DB::Customer->has_many(broadband => "Kirin::DB::Broadband");
+    Kirin::DB::Customer->has_many(bb_search => "Kirin::DB::BroadbandSearches");
     Kirin::DB::BroadbandEvent->has_a(broadband => "Kirin::DB::Broadband");
     Kirin::DB::Broadband->has_many(events => "Kirin::DB::BroadbandEvent");
     Kirin::DB::BroadbandUsage->has_a(broadband => "Kirin::DB::Broadband");
@@ -535,5 +562,15 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     sortorder integer,
     options text
 );
+
+CREATE TABLE IF NOT EXISTS broadband_searches (
+    id integer primary key not null,
+    customer integer,
+    checktime timestamp,
+    telno varchar(12),
+    postcode varchar(9),
+    result text
+);
+
 /}
 1;

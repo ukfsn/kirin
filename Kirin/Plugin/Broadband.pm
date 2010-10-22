@@ -68,11 +68,16 @@ sub order {
 
         if ( ! $search->result || $search->checktime < (time() - 2400) ) {
             my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
-            @services = $murphx->services_available(
+            eval { @services = $murphx->services_available(
                 cli => $clid,
                 qualification => 1,
                 defined $mac ? (mac => $mac) : ()
-            );
+            ); };
+
+            if ( $@ ) {
+                return $mm->respond('plugins/broadband/not-available',
+                    reason => $@);
+            }
 
             $search->result($json->encode(\@services));
             $search->checktime(time());
@@ -91,7 +96,11 @@ sub order {
         my $linespeeds = { ra8 => {
             description => 'ADSL Up to 8Mb/s',
             speed => $qdata->{'max'}->{'down_speed'}
-            }
+            },
+            topspeed => { adsl => {
+                speed => $qdata->{'max'}->{'down_speed'},
+                type => 'ADSL MAX'
+            } }
         };
         if ( $qdata->{'2plus'} ) {
             $linespeeds->{'ra24'} = {
@@ -101,6 +110,10 @@ sub order {
             if ( $qdata->{'2plus'}->{'annexm'} ) {
                 $linespeeds->{'ra24'}->{'annex_m'} = $qdata->{'2plus'}->{'annexm'};
             }
+            $linespeeds->{topspeed}->{adsl} = {
+                speed => $qdata->{'2plus'}->{'down_speed'},
+                type => 'ADSL 2+'
+            };
         }
         if ( $qdata->{'fttc'} ) {
             $linespeeds->{'fttc'} = {
@@ -108,7 +121,13 @@ sub order {
                 speed => $qdata->{'fttc'}->{'down_speed'},
                 upspeed => $qdata->{'fttc'}->{'up_speed'}
             };
+            $linespeeds->{topspeed}->{fttc} = {
+                speed => $qdata->{'fttc'}->{'down_speed'},
+                type => 'FTTC' 
+            };
         }
+
+        use Data::Dumper; warn Dumper $linespeeds;
 
         # This part is Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
@@ -148,7 +167,7 @@ sub order {
 
         # Present list of available services, activation date. XXX
         return $mm->respond('plugins/broadband/signup',
-            services => \%avail);
+            services => \%avail, speeds => $linespeeds );
 
     stage_2:
         # Decode service and present T&C XXX 

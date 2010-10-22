@@ -66,7 +66,7 @@ sub order {
         my %avail = ();
         my @services = ();
 
-        if ( ! $search->result || $search->timestamp < (time() - 2400) ) {
+        if ( ! $search->result || $search->checktime < (time() - 2400) ) {
             my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
             @services = $murphx->services_available(
                 cli => $clid,
@@ -74,52 +74,61 @@ sub order {
                 defined $mac ? (mac => $mac) : ()
             );
 
-            $search->result = $json->encode(@services);
-            $search->timestamp = time();
+            $search->result($json->encode(\@services));
+            $search->checktime(time());
             $search->update;
         }
         else {
-            @services = $json->decode($search->result);
+            @services = @{$json->decode($search->result)};
         }
 
         my $qdata = shift @services; # $qdata is a hashref of BTW services
 
         # XXX Deal with the qdata and offer BT based services for non-Murphx providers
         # We need to verify whether we can supply 2plus (annex m?) and fttc services
-        # This part is very Enta specific
-        my $entaspeeds = { ra8 => {
+
+        # This part is Enta specific
+        my $linespeeds = { ra8 => {
             description => 'ADSL Up to 8Mb/s',
             speed => $qdata->{'max'}->{'down_speed'}
             }
         };
         if ( $qdata->{'2plus'} ) {
-            $entaspeeds->{'ra24'} = {
+            $linespeeds->{'ra24'} = {
                 description => 'ADSL2+ Up to 24Mb/s',
                 speed => $qdata->{'2plus'}->{'down_speed'},
             };
             if ( $qdata->{'2plus'}->{'annexm'} ) {
-                $entaspeeds->{'ra24'}->{'annex_m'} = $qdata->{'2plus'}->{'annexm'};
+                $linespeeds->{'ra24'}->{'annex_m'} = $qdata->{'2plus'}->{'annexm'};
             }
         }
         if ( $qdata->{'fttc'} ) {
-            $entaspeeds->{'fttc'} = {
+            $linespeeds->{'fttc'} = {
                 description => 'FTTC Up to 40Mb/s',
                 speed => $qdata->{'fttc'}->{'down_speed'},
                 upspeed => $qdata->{'fttc'}->{'up_speed'}
             };
         }
 
-        # This part is also Enta specific
+        # This part is Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
-            next if $_->name =~ /FTTC/ && ! $entaspeeds->{'fttc'};
+            next if $_->name =~ /FTTC/ && ! $linespeeds->{'fttc'};
             $avail{$_->sortorder} = {
                 name => $_->name,
                 id => $_->id,
                 crd => $self->_dates($qdata->{classic}->{first_date}),
-                price => $_->price,
-                speeds => $entaspeeds,
+                price => $_->price
             };
+            if ( $linespeeds->{'fttc'} ) {
+                $avail{$_->sortorder}->{speed} = $linespeeds->{'fttc'}->{speed};
+            }
+            elsif ( $linespeeds->{'ra24'} ) {
+                $avail{$_->sortorder}->{speed} = $linespeeds->{'ra24'}->{speed};
+            }
+            else {
+                $avail{$_->sortorder}->{speed} = $linespeeds->{'ra8'}->{speed};
+            }
         }
 
         foreach my $service (@services) {
@@ -383,7 +392,7 @@ sub admin {
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandService->insert({
-            map { $_ => $mm->param($_) } qw/name code provider price/
+            map { $_ => $mm->param($_) } qw/name code provider price sortorder/ 
         });
         $mm->message('Broadband Service Added');
     }

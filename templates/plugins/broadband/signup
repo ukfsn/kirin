@@ -4,7 +4,7 @@
 <table>
 <tr><th>Service</th><th>Price</th><th>Estimated Speed</th><th>Select Install Date</th><th>Select Service</th></tr>
 
-[% FOR s=services.nsort %]
+[% FOR s=services.keys.nsort %]
     <form method="post">
     <input type="hidden" name="clid" value="[%clid|html%]">
     <input type="hidden" name="id" value="[%services.$s.id|html%]">

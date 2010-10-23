@@ -15,7 +15,6 @@ my $json = JSON->new->allow_blessed;
 
 sub list {
     my ($self, $mm) = @_;
-
     my @bbs = Kirin::DB::Broadband->search(customer => $mm->{customer});
     $mm->respond("plugins/broadband/list", bbs => \@bbs);
 }
@@ -23,19 +22,15 @@ sub list {
 sub view {
     my ($self, $mm, $id) = @_;
     if ( ! $id ){$self->list(); return;}
-
     my $bb = $self->_get_service($mm, $id);
     if (! $bb) { $self->list($mm); return; }
-
     my %details = eval { 
         $bb->provider_handle->service_view('service-id' => $bb->token);
     };
-
     if ($@) {
         warn $@;
         $mm->message('We are currently unable to retrieve details for this service.');
     }
-
     my $service = { bb => $bb, details => \%details };
     return $mm->respond('plugins/broadband/'.$bb->service->provider.'/view', service => $service);
 }
@@ -69,16 +64,13 @@ sub order {
         if ( ! $search->result || $search->checktime < (time() - 2400) ) {
             my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
             eval { @services = $murphx->services_available(
-                cli => $clid,
-                qualification => 1,
+                cli => $clid, qualification => 1,
                 defined $mac ? (mac => $mac) : ()
             ); };
-
             if ( $@ ) {
                 return $mm->respond('plugins/broadband/not-available',
                     reason => $@);
             }
-
             $search->result($json->encode(\@services));
             $search->checktime(time());
             $search->update;
@@ -127,8 +119,6 @@ sub order {
             };
         }
 
-        use Data::Dumper; warn Dumper $linespeeds;
-
         # This part is Enta specific
         my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
         foreach ( @enta_services ) {
@@ -137,7 +127,8 @@ sub order {
                 name => $_->name,
                 id => $_->id,
                 crd => $self->_dates($qdata->{classic}->{first_date}),
-                price => $_->price
+                price => $_->price,
+                options => $json->decode($S[0]->options),
             };
             if ( $linespeeds->{'fttc'} ) {
                 $avail{$_->sortorder}->{speed} = $linespeeds->{'fttc'}->{speed};
@@ -159,6 +150,7 @@ sub order {
                 crd => $self->_dates($service->{first_date}),
                 price => $s[0]->price,
                 speed => $service->{max_speed},
+                options => $json->decode($S[0]->options),
             };
         }
 
@@ -196,15 +188,82 @@ sub order {
         # XXX check that the order is valid
 
         # Record the order
+        my $order = undef;
+        my $invoice = undef;
 
-        # Process if the provider handles billing.
+        my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
+        if ( $service->billed ) {
+            # Calculate the price for the service (service + options)
 
+            my $price = undef;
+
+            $invoice = $mm->{customer}->bill_for({
+                description => 'Broadband Order: '.$service->name.' on '.$mm->param('clid'),
+                cost => $price
+            });
+        }
+        $order = Kirin::DB::Orders->insert( {
+            customer    => $mm->{customer},
+            order_type  => 'Broadband',
+            module      => __PACKAGE__,
+            parameters  => $json->encode(
+                service     => $service,
+                customer    => $customer,
+                cli         => $clid,
+            ),
+            invoice     => $invoice->id
+        });
+        if ( ! $order ) {
+            Kirin::Utils->email_boss(
+                severity    => "error",
+                customer    => $mm->{customer},
+                context     => "Trying to create order for broadband",
+                message     => "Cannot create order entry for broadband ".$service->name.' on '.$mm->param('clid')
+            );
+            $mm->message("Our systems are unable to record your order");
+            return $mm->respond("plugins/broadband/error");
+        }
+        $order->set_status("New Order");
+        if ( $invoice ) {
+            $order->set_status("Invoiced");
+        }
+        if ( $service->billed ) {
+            return $mm->respond("plugins/invoice/view", invoice => $order->invoice);
+        }
+        else {
+            # Process if the provider handles billing.
+
+            # XXX Place order with provider
+            $self->process($order->id);
+
+            # XXX Create broadband db entry
+            my $bb = Kirin::DB::Broadband->insert ( );
+            $bb->record_event('order', 'Order Submitted');
+
+            $order->set_status('Submitted');
+            return $mm->respond("plugins/broadband/submitted");
+        }
 }
 
 sub process {
-    # XXX This is what does the actual placing of orders with providers
-    #     once the invoice has been paid or the order is otherwise ready
-    #     to be placed.
+    my ($self, $id) = @_;
+    my $order = Kirin::DB::Orders->retrieve($id);
+    if ( ! $order || ( $order->invoice && ! $order->invoice->paid ) ) {
+        return;
+    }
+    if ( $order->module ne __PACKAGE__ ) { return; }
+    
+    my $op = $json->decode($order->parameters);
+
+    my $handle = Kirin::DB::Broadband->provider_handle($op->service->provider);
+    # XXX Verify the order details are valid
+
+    # XXX place the order
+    my $orderid = undef;
+    my $serviceid = undef;
+    if ( ! ($orderid, $serviceid) = $handle->order( # XXX ) ) {
+        # XXX handle the error
+    }
 
 }
 
@@ -410,6 +469,10 @@ sub admin {
             }
             $mm->respond('plugins/broadband/admin');
         }
+        # XXX How to handle service options ?
+        # things like interleaving, enhanced care, elevated best efforts
+        # ip addresses, linespeed, etc
+
         my $new = Kirin::DB::BroadbandService->insert({
             map { $_ => $mm->param($_) } qw/name code provider price sortorder/ 
         });
@@ -421,6 +484,7 @@ sub admin {
             for (qw/name code provider price sortorder/) {
                 $product->$_($mm->param($_));
             }
+            # XXX options bit needs to be added
             $product->update();
         }
         $mm->message('Broadband Service Updated');
@@ -589,7 +653,15 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     name varchar(255),
     price decimal(5,2),
     sortorder integer,
-    options text
+    options text,
+    billed integer,
+);
+
+CREATE TABLE IF NOT EXISTS broadband_options (
+    id integer primary key not null,
+    service integer,
+    option varchar(255),
+    price decimal(5,2),
 );
 
 CREATE TABLE IF NOT EXISTS broadband_searches (

@@ -9,7 +9,8 @@ use Net::DSLProvider;
 sub user_name      { "Broadband" }
 sub default_action { "list" }
 use constant MAC_RE => qr/[A-Z0-9]{12,14}\/[A-Z]{2}[0-9]{2}[A-Z]/;
-my $murphx;
+my $dsl;
+my $murphx; # XXX remove this!
 
 my $json = JSON->new->allow_blessed;
 
@@ -58,108 +59,48 @@ sub order {
             telno => $clid
         } );
 
-        my %avail = ();
-        my @services = ();
+        my %avail = (); # This hash is what is returned to the customer
+
+        my %services = ();
 
         if ( ! $search->result || $search->checktime < (time() - 2400) ) {
-            my $murphx = Kirin::DB::Broadband->provider_handle("murphx");
-            eval { @services = $murphx->services_available(
-                cli => $clid, qualification => 1,
-                defined $mac ? (mac => $mac) : ()
+            my $dsl = Kirin::DB::Broadband->provider_handle( Kirin->args->{dsl_check_provider} );
+            eval { %services = $dsl->services_available(
+                cli => $clid, defined $mac ? (mac => $mac) : ()
             ); };
             if ( $@ ) {
                 return $mm->respond('plugins/broadband/not-available',
-                    reason => $@);
+                    reason => $@); # XXX Not a good idea to throw up the raw error perhaps?
             }
-            $search->result($json->encode(\@services));
+            $search->result($json->encode(\%services));
             $search->checktime(time());
             $search->update;
         }
         else {
-            @services = @{$json->decode($search->result)};
+            %services = %{$json->decode($search->result)};
         }
 
-        my $qdata = shift @services; # $qdata is a hashref of BTW services
+        use Data::Dumper;
+        warn Dumper \%services;
 
-        # XXX Deal with the qdata and offer BT based services for non-Murphx providers
-        # We need to verify whether we can supply 2plus (annex m?) and fttc services
+        # Pass on details of technology and speed available
+        $avail{qualification} = $services{qualification};
 
-        # This part is Enta specific
-        my $linespeeds = { ra8 => {
-            description => 'ADSL Up to 8Mb/s',
-            speed => $qdata->{'max'}->{'down_speed'}
-            },
-            topspeed => { adsl => {
-                speed => $qdata->{'max'}->{'down_speed'},
-                type => 'ADSL MAX'
-            } }
-        };
-        if ( $qdata->{'2plus'} ) {
-            $linespeeds->{'ra24'} = {
-                description => 'ADSL2+ Up to 24Mb/s',
-                speed => $qdata->{'2plus'}->{'down_speed'},
-            };
-            if ( $qdata->{'2plus'}->{'annexm'} ) {
-                $linespeeds->{'ra24'}->{'annex_m'} = $qdata->{'2plus'}->{'annexm'};
-            }
-            $linespeeds->{topspeed}->{adsl} = {
-                speed => $qdata->{'2plus'}->{'down_speed'},
-                type => 'ADSL 2+'
-            };
-        }
-        if ( $qdata->{'fttc'} ) {
-            $linespeeds->{'fttc'} = {
-                description => 'FTTC Up to 40Mb/s',
-                speed => $qdata->{'fttc'}->{'down_speed'},
-                upspeed => $qdata->{'fttc'}->{'up_speed'}
-            };
-            $linespeeds->{topspeed}->{fttc} = {
-                speed => $qdata->{'fttc'}->{'down_speed'},
-                type => 'FTTC' 
+        my @services = Kirin::DB::BroadbandService->retrieve_all();
+
+        foreach my $s (@services) {
+            warn $s->id . ' ' . $s->name . ' ' . $s->price;
+            $avail{$s->sortorder} = {
+                name => $s->name,
+                id => $s->id,
+                crd => defined $services{$s->code} ? $self->_dates($services{$s->code}->{first_date}) : $services{qualification}->{first_date},
+                price => $s->price,
+                speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
+                # options => $s->option,
             };
         }
 
-        # This part is Enta specific
-        my @enta_services = Kirin::DB::BroadbandService->search(provider => 'Enta');
-        foreach ( @enta_services ) {
-            next if $_->name =~ /FTTC/ && ! $linespeeds->{'fttc'};
-            $avail{$_->sortorder} = {
-                name => $_->name,
-                id => $_->id,
-                crd => $self->_dates($qdata->{classic}->{first_date}),
-                price => $_->price,
-                options => $json->decode($S[0]->options),
-            };
-            if ( $linespeeds->{'fttc'} ) {
-                $avail{$_->sortorder}->{speed} = $linespeeds->{'fttc'}->{speed};
-            }
-            elsif ( $linespeeds->{'ra24'} ) {
-                $avail{$_->sortorder}->{speed} = $linespeeds->{'ra24'}->{speed};
-            }
-            else {
-                $avail{$_->sortorder}->{speed} = $linespeeds->{'ra8'}->{speed};
-            }
-        }
-
-        foreach my $service (@services) {
-            my @s = Kirin::DB::BroadbandService->search(code => $service->{product_id});
-            next if ! @s;   # Only offer services we actually sell!
-            $avail{$s[0]->sortorder} = {
-                name => $s[0]->name,
-                id => $s[0]->id,
-                crd => $self->_dates($service->{first_date}),
-                price => $s[0]->price,
-                speed => $service->{max_speed},
-                options => $json->decode($S[0]->options),
-            };
-        }
-
-        # XXX If there are to be services from other suppliers code may need
-        #     to be added for it.
-
-        # Present list of available services, activation date. XXX
-        return $mm->respond('plugins/broadband/signup',
-            services => \%avail, speeds => $linespeeds );
+        return $mm->respond('plugins/broadband/signup', services => \%avail);
 
     stage_2:
         # Decode service and present T&C XXX 
@@ -188,31 +129,29 @@ sub order {
         # XXX check that the order is valid
 
         # Record the order
-        my $order = undef;
         my $invoice = undef;
 
         my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
         if ( $service->billed ) {
-            # Calculate the price for the service (service + options)
-
-            my $price = undef;
+            my $price = $service->price;
+            # for each option check if there is a cost and if so add it
 
             $invoice = $mm->{customer}->bill_for({
                 description => 'Broadband Order: '.$service->name.' on '.$mm->param('clid'),
                 cost => $price
             });
         }
-        $order = Kirin::DB::Orders->insert( {
+        my $order = Kirin::DB::Orders->insert( {
             customer    => $mm->{customer},
             order_type  => 'Broadband',
             module      => __PACKAGE__,
-            parameters  => $json->encode(
+            parameters  => $json->encode( {
                 service     => $service,
-                customer    => $customer,
+                customer    => $mm->{customer},
                 cli         => $clid,
-            ),
+            } ),
             invoice     => $invoice->id
-        });
+        } );
         if ( ! $order ) {
             Kirin::Utils->email_boss(
                 severity    => "error",
@@ -261,7 +200,10 @@ sub process {
     # XXX place the order
     my $orderid = undef;
     my $serviceid = undef;
-    if ( ! ($orderid, $serviceid) = $handle->order( # XXX ) ) {
+    eval { 
+        ($orderid, $serviceid) = $handle->order( ); # XXX needs parameters - perhaps params need to be stored using param names as db keys
+    };
+    if ( $@ ) {
         # XXX handle the error
     }
 
@@ -497,6 +439,43 @@ sub admin {
     $mm->respond('plugins/broadband/admin', products => \@products);
 }
 
+sub admin_options {
+    my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
+    my $id = undef;
+    if ($mm->param('create')) {
+        for (qw/service, option, code, price/) {
+            if ( ! $mm->param($_) ) {
+                $mm->message("You must specify the $_ parameter");
+            }
+            $mm->respond('plugins/broadband/admin');
+        }
+        my $new = Kirin::DB::BroadbandOption->insert({
+            map { $_ => $mm->param($_) } qw/service, option, code, price/
+        });
+        $mm->message('Broadband Service Option Added');
+    }
+    elsif ($id = $mm->param('editoption')) {
+        my $option = Kirin::DB::BroadbandOption->retrieve($id);
+        if ( $option ) {
+            for (qw/service, option, code, price/) {
+                $option->$_($mm->param($_));
+            }
+            $option->update();
+        }
+        $mm->message('Broadband Option Updated');
+    }
+    elsif ($id = $mm->param('deleteoption')) {
+        my $option = Kirin::DB::BroadbandOption->retrieve($id);
+        if ( $option ) { $option->delete(); $mm->message('Broadband Option Deleted'); }
+    }
+    my @options = Kirin::DB::BroadbandOption->retrieve_all();
+    my @services = Kirin::DB::BroadbandService->retrieve_all();
+    use Data::Dumper; warn Dumper \@services;
+    $mm->respond('plugins/broadband/admin_options', 
+        options => \@options, services => \@services);
+}
+
 sub _setup_db {
     Kirin->args->{$_}
         || die "You need to configure $_ in your Kirin configuration"
@@ -517,6 +496,8 @@ sub _setup_db {
     Kirin::DB::Broadband->has_many(events => "Kirin::DB::BroadbandEvent");
     Kirin::DB::BroadbandUsage->has_a(broadband => "Kirin::DB::Broadband");
     Kirin::DB::Broadband->has_many(usage_reports => "Kirin::DB::BroadbandUsage");
+    # Kirin::DB::BroadbandService->has_many(option => "Kirin::DB::BroadbandOption");
+    # Kirin::DB::BroadbandOption->has_a(service => "Kirin::DB::BroadbandService");
     Kirin::DB::BroadbandEvent->has_a(event_date => 'Time::Piece',
       inflate => sub { Time::Piece->strptime(shift, "%Y-%m-%d") },
       deflate => 'ymd',
@@ -653,14 +634,14 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     name varchar(255),
     price decimal(5,2),
     sortorder integer,
-    options text,
     billed integer,
 );
 
-CREATE TABLE IF NOT EXISTS broadband_options (
+CREATE TABLE IF NOT EXISTS broadband_option (
     id integer primary key not null,
     service integer,
     option varchar(255),
+    code varchar(255),
     price decimal(5,2),
 );
 

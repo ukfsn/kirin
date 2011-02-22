@@ -30,7 +30,6 @@ Requested install date: <select name="crd">
         <option value="[% date.format(t, "%Y-%m-%d") |html %]">[% date.format(t, "%e %B %Y") %]</option>
     [% END %]
 </select><br />
-
 </p>
 
 [% ELSE %]

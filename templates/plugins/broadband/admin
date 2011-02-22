@@ -12,6 +12,12 @@
     <td> <input name="sortorder" value="[%p.sortorder%]"> </td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
+    <form method="post" action="/broadband/admin_options">
+    <input type="hidden" value="[%p.id%]" name="editoptions">
+    <td>
+        <input type="submit" value="Options">
+    </td>
+    </form>
     <form method="post">
     <input type="hidden" value="[%p.id%]" name="deleteproduct">
     <td> 

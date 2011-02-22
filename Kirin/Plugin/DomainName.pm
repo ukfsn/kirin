@@ -732,6 +732,12 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     min_duration integer,
     max_duration integer
 );
+
+CREATE TABLE IF NOT EXISTS tld_transfer_options (id integer primary key not null,
+    tld integer,
+    auth_code integer,
+    external_action integer,
+);
 /}
 
 package Kirin::DB::RegType;

@@ -1,10 +1,10 @@
-[% IF services.size > 0 %]
+[% IF result.services.size > 0 %]
 <h2>Sign up for broadband</h2>
 
-<p>Our checks indicate that your line should be able to sustain an ADSL broadband connection with speeds of up to [% speeds.topspeed.adsl.speed / 1000 %] kb/s. Please note that this is an estimated maximum speed and actual speeds may vary depending upon the length and quality of your line and the equipment you use.</p>
+<p>Our checks indicate that your line should be able to sustain an ADSL broadband connection with speeds of up to [% result.qualification.top %] kb/s. Please note that this is an estimated maximum speed and actual speeds may vary depending upon the length and quality of your line and the equipment you use.</p>
 
-[% IF speeds.topspeed.fttc.speed %]
-<p>The checks also indicate that your line should be able to sustain a FTTC broadband connection with download speeds of up to [% speeds.topspeed.fttc.speed / 1000 %] kb/s.</p>
+[% IF result.qualification.fttc.down %]
+<p>The checks also indicate that your line should be able to sustain a FTTC broadband connection with download speeds of up to [% result.qualification.fttc.down %] kb/s.</p>
 [% END %]
 
 <p>To place an order for service please select the service and any options you require from the list below.</p>
@@ -12,13 +12,13 @@
 <p>Select the service you require: 
 
 <select name="service">
-[% FOR s=services.keys.nsort %]
-    <option value="[% services.$s.id %]">[%services.$s.name%] - &pound;
-    [% IF services.$s.name.match('Business') %]
-        [% services.$s.price %] + VAT
+[% FOR s=result.services.keys.nsort %]
+    <option value="[% result.services.$s.id %]">[%result.services.$s.name%] - &pound;
+    [% IF result.services.$s.name.match('Business') %]
+        [% result.services.$s.price %] + VAT
     [% ELSE %]
         [% USE format %]
-        [% FILTER format('%01.2f') %][% services.$s.price * 1.175 %][%END%] inc. VAT
+        [% FILTER format('%01.2f') %][% result.services.$s.price * 1.2 %][%END%] inc. VAT
     [% END %]
     </option>
 [% END %]
@@ -26,7 +26,7 @@
 
 Requested install date: <select name="crd">
     [% USE date %]
-    [% FOR t IN services.$s.crd %]
+    [% FOR t IN result.services.$s.crd %]
         <option value="[% date.format(t, "%Y-%m-%d") |html %]">[% date.format(t, "%e %B %Y") %]</option>
     [% END %]
 </select><br />

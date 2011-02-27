@@ -10,7 +10,6 @@ sub user_name      { "Broadband" }
 sub default_action { "list" }
 use constant MAC_RE => qr/[A-Z0-9]{12,14}\/[A-Z]{2}[0-9]{2}[A-Z]/;
 my $dsl;
-my $murphx; # XXX remove this!
 
 my $json = JSON->new->allow_blessed;
 
@@ -60,7 +59,6 @@ sub order {
         } );
 
         my %avail = (); # This hash is what is returned to the customer
-
         my %services = ();
 
         if ( ! $search->result || $search->checktime < (time() - 2400) ) {
@@ -80,27 +78,33 @@ sub order {
             %services = %{$json->decode($search->result)};
         }
 
-        use Data::Dumper;
-        warn Dumper \%services;
-
-        # Pass on details of technology and speed available
-        $avail{qualification} = $services{qualification};
-
         my @services = Kirin::DB::BroadbandService->retrieve_all();
 
         foreach my $s (@services) {
-            warn $s->id . ' ' . $s->name . ' ' . $s->price;
+            my $options = { };
+            for my $o (@{$s->class->options}) {
+                $options->{$o->id} = {
+                    option => $o->option,
+                    code => $o->code,
+                    price => $o->price,
+                    required => $o->required,
+                };
+            }
+
             $avail{$s->sortorder} = {
                 name => $s->name,
                 id => $s->id,
                 crd => defined $services{$s->code} ? $self->_dates($services{$s->code}->{first_date}) : $services{qualification}->{first_date},
                 price => $s->price,
                 speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
-                # options => $s->option,
+                options => $options,
             };
         }
 
-        return $mm->respond('plugins/broadband/signup', services => \%avail);
+        return $mm->respond('plugins/broadband/signup', result => {
+            services => \%avail,
+            qualification => $services{qualification}
+        });
 
     stage_2:
         # Decode service and present T&C XXX 
@@ -112,9 +116,16 @@ sub order {
         }
         # verify that the selected crd is valid
 
-        # Is the IP address selection OK?
-
-        # Other options?
+        # IP and Other options?
+        my $options = { };
+        for my $o (@{$service->class->options}){
+            if ( $o->required && ! $mm->param($o->option) ) {
+                # XXX raise an error and return to customer
+            }
+            if ( $mm->param($o->option) ) {
+                $options->{$o->code} = $mm->param($o->option);
+            }
+        }
 
         # OK by this stage we have a valid order. Now onto T&C
         return $mm->respond('plugins/broadband/terms-and-conditions',
@@ -135,6 +146,7 @@ sub order {
         if ( $service->billed ) {
             my $price = $service->price;
             # for each option check if there is a cost and if so add it
+            my $options = { };
 
             $invoice = $mm->{customer}->bill_for({
                 description => 'Broadband Order: '.$service->name.' on '.$mm->param('clid'),
@@ -146,7 +158,8 @@ sub order {
             order_type  => 'Broadband',
             module      => __PACKAGE__,
             parameters  => $json->encode( {
-                service     => $service,
+                service     => $service->id,
+                options     => $options,
                 customer    => $mm->{customer},
                 cli         => $clid,
             } ),
@@ -170,17 +183,9 @@ sub order {
             return $mm->respond("plugins/invoice/view", invoice => $order->invoice);
         }
         else {
-            # Process if the provider handles billing.
-
-            # XXX Place order with provider
-            $self->process($order->id);
-
-            # XXX Create broadband db entry
-            my $bb = Kirin::DB::Broadband->insert ( );
-            $bb->record_event('order', 'Order Submitted');
-
-            $order->set_status('Submitted');
-            return $mm->respond("plugins/broadband/submitted");
+            if ( $self->process($order->id) ) {
+                $mm->respond("plugins/broadband/processed", $order);
+            }
         }
 }
 
@@ -205,8 +210,19 @@ sub process {
     };
     if ( $@ ) {
         # XXX handle the error
+        return;
     }
-
+    
+    my $bb = Kirin::DB::Broadband->insert ( {
+        customer => $order->customer,
+        telno => $order->{parameters}->{clid},
+        service => $order->{parameters},
+        token => $serviceid,
+        status => 'Submitted'
+    });
+    $bb->record_event('order', 'Order Submitted');
+    $order->set_status('Submitted');
+    return 1;
 }
 
 sub request_mac {
@@ -405,38 +421,48 @@ sub admin {
     my $id = undef;
 
     if ($mm->param('create')) {
-        for (qw/name code provider price sortorder/) {
+        for (qw/name code provider class price sortorder/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
-        # XXX How to handle service options ?
-        # things like interleaving, enhanced care, elevated best efforts
-        # ip addresses, linespeed, etc
 
         my $new = Kirin::DB::BroadbandService->insert({
-            map { $_ => $mm->param($_) } qw/name code provider price sortorder/ 
+            map { $_ => $mm->param($_) } qw/name code provider class price sortorder/
         });
         $mm->message('Broadband Service Added');
     }
+
     elsif ($id = $mm->param('editproduct')) {
         my $product = Kirin::DB::BroadbandService->retrieve($id);
         if ( $product ) {
-            for (qw/name code provider price sortorder/) {
+            for (qw/name code provider class price sortorder/) {
                 $product->$_($mm->param($_));
             }
-            # XXX options bit needs to be added
             $product->update();
         }
         $mm->message('Broadband Service Updated');
     }
+
     elsif ($id = $mm->param('deleteproduct')) {
         my $product = Kirin::DB::BroadbandService->retrieve($id);
         if ( $product ) { $product->delete(); $mm->message('Broadband Service Deleted'); }
     }
     my @products = Kirin::DB::BroadbandService->retrieve_all();
-    $mm->respond('plugins/broadband/admin', products => \@products);
+    my @classes = Kirin::DB::BroadbandClass->retrieve_all();
+    my %c = ();
+    for my $class (@classes) {
+        $c{$class->id} = {
+            name => $class->name,
+            provider => $class->provider
+        };
+    }
+
+    $mm->respond('plugins/broadband/admin', {
+        products => \@products,
+        classes => \%c
+    });
 }
 
 sub admin_options {
@@ -444,21 +470,21 @@ sub admin_options {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/service, option, code, price/) {
+        for (qw/class, option, code, price, required/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandOption->insert({
-            map { $_ => $mm->param($_) } qw/service, option, code, price/
+            map { $_ => $mm->param($_) } qw/class option code price required/
         });
         $mm->message('Broadband Service Option Added');
     }
     elsif ($id = $mm->param('editoption')) {
         my $option = Kirin::DB::BroadbandOption->retrieve($id);
         if ( $option ) {
-            for (qw/service, option, code, price/) {
+            for (qw/class option code price required/) {
                 $option->$_($mm->param($_));
             }
             $option->update();
@@ -470,34 +496,32 @@ sub admin_options {
         if ( $option ) { $option->delete(); $mm->message('Broadband Option Deleted'); }
     }
     my @options = Kirin::DB::BroadbandOption->retrieve_all();
-    my @services = Kirin::DB::BroadbandService->retrieve_all();
-    use Data::Dumper; warn Dumper \@services;
-    $mm->respond('plugins/broadband/admin_options', 
-        options => \@options, services => \@services);
+    my @classes = Kirin::DB::BroadbandClass->retrieve_all();
+    $mm->respond('plugins/broadband/admin_options', {
+        options => \@options,
+        classes => \@classes
+    });
 }
 
 sub _setup_db {
-    Kirin->args->{$_}
-        || die "You need to configure $_ in your Kirin configuration"
-        for qw/murphx_username murphx_password murphx_clientid/;
-    use Net::DSLProvider::Murphx; # XXX
-    $murphx = Net::DSLProvider::Murphx->new({
-        user => Kirin->args->{murphx_username},
-        pass => Kirin->args->{murphx_password},
-        clientid => Kirin->args->{murphx_clientid}
-    });
+    my $p = Kirin->args->{dsl_check_provider};
+    $dsl = "Net::DSLProvider::".ucfirst($p);
+    $dsl->require or die "Can't find a provider module for $p:$@";
+
+    $dsl->new( \%{Kirin->args->{dsl_credentials}->{$p}} ); 
 
     shift->_ensure_table('broadband');
     Kirin::DB::Broadband->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Broadband->has_a(service => "Kirin::DB::BroadbandService");
+    Kirin::DB::BroadbandService->has_a(class => "Kirin::DB::BroadbandClass");
     Kirin::DB::Customer->has_many(broadband => "Kirin::DB::Broadband");
     Kirin::DB::Customer->has_many(bb_search => "Kirin::DB::BroadbandSearches");
     Kirin::DB::BroadbandEvent->has_a(broadband => "Kirin::DB::Broadband");
     Kirin::DB::Broadband->has_many(events => "Kirin::DB::BroadbandEvent");
     Kirin::DB::BroadbandUsage->has_a(broadband => "Kirin::DB::Broadband");
     Kirin::DB::Broadband->has_many(usage_reports => "Kirin::DB::BroadbandUsage");
-    # Kirin::DB::BroadbandService->has_many(option => "Kirin::DB::BroadbandOption");
-    # Kirin::DB::BroadbandOption->has_a(service => "Kirin::DB::BroadbandService");
+    Kirin::DB::BroadbandOption->has_a(class => "Kirin::DB::BroadbandClass");
+    Kirin::DB::BroadbandClass->has_many(options => "Kirin::DB::BroadbandOption");
     Kirin::DB::BroadbandEvent->has_a(event_date => 'Time::Piece',
       inflate => sub { Time::Piece->strptime(shift, "%Y-%m-%d") },
       deflate => 'ymd',
@@ -529,13 +553,8 @@ sub provider_handle {
     my $p = shift || $self->service->provider;
     my $module = "Net::DSLProvider::".ucfirst($p);
     $module->require or die "Can't find a provider module for $p:$@";
-
-    $module->new({ 
-        user     => Kirin->args->{"${p}_username"},
-        pass     => Kirin->args->{"${p}_password"},
-        clientid => Kirin->args->{"${p}_clientid"},
-        debug       => 1,   # XXX
-    });
+    
+    $module->new( Kirin->args->{dsl_credentials}->{$p} ); 
 }
 
 sub get_bandwidth_for {
@@ -635,14 +654,22 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     price decimal(5,2),
     sortorder integer,
     billed integer,
+    class integer,
+);
+
+CREATE TABLE IF NOT EXISTS broadband_class (
+    id integer primary key not null,
+    name varchar(255),
+    provider varchar(255),
 );
 
 CREATE TABLE IF NOT EXISTS broadband_option (
     id integer primary key not null,
-    service integer,
+    class integer,
     option varchar(255),
     code varchar(255),
     price decimal(5,2),
+    required integer,
 );
 
 CREATE TABLE IF NOT EXISTS broadband_searches (

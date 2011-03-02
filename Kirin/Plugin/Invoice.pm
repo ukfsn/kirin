@@ -54,7 +54,23 @@ sub _setup_db {
 
 package Kirin::DB::Invoice;
 use List::Util qw(sum);
-sub total { return sum map {$_->cost } shift->invoicelineitems; }
+sub total {
+    my $self = shift;
+    my $total = sum map {$_->cost } $self->invoicelineitems;
+    if ( ! $self->customer->vatexempt && $total > 0 ) {
+        $total *= $self->vat_rate;
+    }
+    return $total;
+}
+
+sub vat_rate {
+    my $self = shift;
+    my @vat = Kirin::DB::VatRates->search_where( -and => {
+        startdate => { '>=', $self->issuedate },
+        enddata => { '<=', $self->issuedate }
+    });
+    return ($vat[0] / 100) + 1;
+}
 
 sub send_all_reminders { 
 
@@ -125,5 +141,8 @@ sub dispatch {
     Kirin::Utils->send_email($email);
     $self->update();
 }
+
+package Kirin::DB::VatRates;
+use Class::DBI::AbstractSearch;
 
 1;

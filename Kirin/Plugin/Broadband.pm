@@ -79,7 +79,6 @@ sub order {
         }
 
         my @services = Kirin::DB::BroadbandService->retrieve_all();
-
         foreach my $s (@services) {
             my $options = { };
             for my $o (@{$s->class->options}) {
@@ -90,7 +89,6 @@ sub order {
                     required => $o->required,
                 };
             }
-
             $avail{$s->sortorder} = {
                 name => $s->name,
                 id => $s->id,
@@ -470,7 +468,7 @@ sub admin_options {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/class, option, code, price, required/) {
+        for (qw/class option code price required/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
@@ -501,6 +499,40 @@ sub admin_options {
         options => \@options,
         classes => \@classes
     });
+}
+
+sub admin_class {
+    my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
+    my $id = undef;
+    if ($mm->param('create')) {
+        for (qw/name provider/) {
+            if ( ! $mm->param($_) ) {
+                $mm->message("You must specify the $_ parameter");
+            }
+            $mm->respond('plugins/broadband/admin');
+        }
+        my $new = Kirin::DB::BroadbandClass->insert({
+            map { $_ => $mm->param($_) } qw/name provider/
+        });
+        $mm->message('Broadband Service Class Added');
+    }
+    elsif ($id = $mm->param('editclass')) {
+        my $class = Kirin::DB::BroadbandClass->retrieve($id);
+        if ( $class ) {
+            for (qw/name provider/) {
+                $class->$_($mm->param($_));
+            }
+            $class->update();
+        }
+        $mm->message('Broadband Class Updated');
+    }
+    elsif ($id = $mm->param('deleteclass')) {
+        my $class = Kirin::DB::BroadbandClass->retrieve($id);
+        if ( $class ) { $class->delete(); $mm->message('Broadband Class Deleted'); }
+    }
+    my @classes = Kirin::DB::BroadbandClass->retrieve_all();
+    $mm->respond('plugins/broadband/admin_class', classes => \@classes);
 }
 
 sub _setup_db {

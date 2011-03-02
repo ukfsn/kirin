@@ -127,5 +127,4 @@ sub _validate_password {
     if ($check == 127) { $mm->message("Password is incredibly weak") }
     return 1;
 }
-
 1;

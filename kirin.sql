@@ -21,7 +21,9 @@ CREATE TABLE customer ( id integer primary key not null,
     dob date ,
     billing_email char(128) ,
     sms char(20) ,
-    accountscode char(10) 
+    accountscode char(10),
+    vatregistration varchar(30),
+    vatexempt integer
 ); 
 
 CREATE TABLE admin ( id integer primary key not null, user integer, customer integer);
@@ -76,3 +78,9 @@ CREATE TABLE jobqueue (
     parameters text
 );
 
+CREATE TABLE vatrates (
+    id integer primary key not null,
+    rate decimal(5,2),
+    startdate date,
+    enddate date
+);

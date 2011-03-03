@@ -58,7 +58,7 @@ sub order {
             telno => $clid
         } );
 
-        my %avail = (); # This hash is what is returned to the customer
+        my %avail = ();     # This hash is what is returned to the customer
         my %services = ();
 
         if ( ! $search->result || $search->checktime < (time() - 2400) ) {
@@ -114,7 +114,6 @@ sub order {
             $mm->message('Please select from the available services');
             goto stage_1;
         }
-        # verify that the selected crd is valid
         if ( ! $self->_valid_date($mm->param('crd')) ) {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');
             goto stage_1;
@@ -549,6 +548,13 @@ sub _setup_db {
     $dsl->new( \%{Kirin->args->{dsl_credentials}->{$p}} ); 
 
     shift->_ensure_table('broadband');
+    shift->_ensure_table('broadband_service');
+    shift->_ensure_table('broadband_class');
+    shift->_ensure_table('broadband_option');
+    shift->_ensure_table('broadband_usage');
+    shift->_ensure_table('broadband_event');
+    shift->_ensure_table('broadband_searches');
+
     Kirin::DB::Broadband->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Broadband->has_a(service => "Kirin::DB::BroadbandService");
     Kirin::DB::BroadbandService->has_a(class => "Kirin::DB::BroadbandClass");

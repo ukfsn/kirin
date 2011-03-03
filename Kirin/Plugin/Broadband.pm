@@ -92,7 +92,9 @@ sub order {
             $avail{$s->sortorder} = {
                 name => $s->name,
                 id => $s->id,
-                crd => defined $services{$s->code} ? $self->_dates($services{$s->code}->{first_date}) : $services{qualification}->{first_date},
+                crd => defined $services{$s->code} ? 
+                    $self->_dates($services{$s->code}->{first_date}) : 
+                    $self->_dates($services{qualification}->{first_date}),
                 price => $s->price,
                 speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
                 options => $options,
@@ -109,10 +111,14 @@ sub order {
         # Previous step must supply service id, crd, ip address requirement + any special options
         my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
         if ( ! $service ) {
-            $mm->param('Please select from the available services');
+            $mm->message('Please select from the available services');
             goto stage_1;
         }
         # verify that the selected crd is valid
+        if ( ! $self->_valid_date($mm->param('crd')) ) {
+            $mm->message('We are unable to process an order for the selected date. Please select another date.');
+            goto stage_1;
+        }
 
         # IP and Other options?
         my $options = { };
@@ -564,6 +570,10 @@ sub _dates {
     my $self = shift;
     my $first_date = shift;
     my $start = Time::Piece->new() + ONE_WEEK;
+    while ( ! $self->_valid_date($start->ymd) {
+        $start += ONE_DAY;
+    }
+
     if ( $first_date ) {
         $start = Time::Piece->strptime($first_date, "%F");
     }
@@ -576,6 +586,33 @@ sub _dates {
         $start += ONE_DAY;
     }
     return \@dates;
+}
+
+sub _valid_date {
+    my ($self, $date) = @_;
+    return if ! $date;
+    my $start = Time::Piece->new();
+
+    # We need to be certain that the effective start date is 5 clear
+    # working days hence.
+    my $count = 5;
+    while ( $count > 0 ) {
+        if ($start->wday == 1 || $start->wday == 7 || is_holiday($start->ymd)) {
+            $start += ONE_DAY;
+        }
+        else {
+            $start += ONE_DAY;
+            $count --;
+        }
+    }
+
+    my $end = $start + ONE_MONTH;
+    my $d = Time::Piece->strptime($date, "%F");
+    if ( $d < $start || $d > $end ) {
+        return;
+    }
+    
+    return 1;
 }
 
 package Kirin::DB::Broadband;

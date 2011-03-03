@@ -151,8 +151,6 @@ sub order {
             $mm->message("Our system is unable to record the details of your order.");
             return $mm->respond("plugins/broadband/error");
         }
-        $order->set_status('Collecting Order Stage 2');
-
         return $mm->respond('plugins/broadband/terms-and-conditions', {
             order => $order->id,
             provider => $service->provider
@@ -167,7 +165,23 @@ sub order {
         my $order = Kirin::DB::Orders->retrieve($mm->param('orderid'));
         if ( ! $order ) {
             $mm->message('Our system is unable to retrieve details of your order');
-            goto stage_2;
+            goto stage_1;
+        }
+        my $summary = $json->decode($order->parameters);
+        $summary->{id} = $order->id;
+
+        return $mm->respond('plugins/broadband/order-summary', order => $summary);
+
+    stage_4:
+        if (!$mm->param('order_confirmed')) {
+            $mm->param('We cannot process an order until you confirm the order details');
+            goto stage_3;
+        }
+
+        my $order = Kirin::DB::Orders->retrieve($mm->param('orderid'));
+        if ( ! $order ) {
+            $mm->message('Our system is unable to retrieve details of your order');
+            goto stage_1;
         }
         my $op = $json->decode($order->parameters);
 

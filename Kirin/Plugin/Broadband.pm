@@ -570,7 +570,7 @@ sub _dates {
     my $self = shift;
     my $first_date = shift;
     my $start = Time::Piece->new() + ONE_WEEK;
-    while ( ! $self->_valid_date($start->ymd) {
+    while ( ! $self->_valid_date($start->ymd) ) {
         $start += ONE_DAY;
     }
 

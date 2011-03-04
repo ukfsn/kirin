@@ -86,6 +86,7 @@ sub order {
                     option => $o->option,
                     code => $o->code,
                     price => $o->price,
+                    setup => $o->setup,
                     required => $o->required,
                 };
             }
@@ -199,9 +200,13 @@ sub order {
             }
             # for each option check if there is a cost and if so add it
             for my $o (keys %{$op->options}) {
-                next unless $o->price > 0;
-                $invoice->add_line_item( description => $o->option,
-                    cost => $o->price);
+                next unless ($o->price > 0 || $o->setup > 0);
+                if ($o->setup > 0) {
+                    $invoice->add_line_item(description => $o->option . " Setup Charge", cost => $o->setup);
+                }
+                if ($o->price > 0) {
+                    $invoice->add_line_item(description => $o->option, cost => $o->price);
+                }
             }
             $order->invoice($invoice->id);
             $order->set_status("Invoiced");
@@ -495,21 +500,21 @@ sub admin_options {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/class option code price required/) {
+        for (qw/class option code price setup required/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandOption->insert({
-            map { $_ => $mm->param($_) } qw/class option code price required/
+            map { $_ => $mm->param($_) } qw/class option code price setup required/
         });
         $mm->message('Broadband Service Option Added');
     }
     elsif ($id = $mm->param('editoption')) {
         my $option = Kirin::DB::BroadbandOption->retrieve($id);
         if ( $option ) {
-            for (qw/class option code price required/) {
+            for (qw/class option code price setup required/) {
                 $option->$_($mm->param($_));
             }
             $option->update();
@@ -563,13 +568,21 @@ sub admin_class {
 }
 
 sub _setup_db {
+    my $self = shift;
     my $p = Kirin->args->{dsl_check_provider};
     $dsl = "Net::DSLProvider::".ucfirst($p);
     $dsl->require or die "Can't find a provider module for $p:$@";
 
     $dsl->new( \%{Kirin->args->{dsl_credentials}->{$p}} ); 
 
-    shift->_ensure_table('broadband');
+    $self->_ensure_table('broadband');
+    $self->_ensure_table('broadband_service');
+    $self->_ensure_table('broadband_class');
+    $self->_ensure_table('broadband_usage');
+    $self->_ensure_table('broadband_searches');
+    $self->_ensure_table('broadband_option');
+    $self->_ensure_table('broadband_service_option');
+
     Kirin::DB::Broadband->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Broadband->has_a(service => "Kirin::DB::BroadbandService");
     Kirin::DB::BroadbandService->has_a(class => "Kirin::DB::BroadbandClass");
@@ -581,6 +594,9 @@ sub _setup_db {
     Kirin::DB::Broadband->has_many(usage_reports => "Kirin::DB::BroadbandUsage");
     Kirin::DB::BroadbandOption->has_a(class => "Kirin::DB::BroadbandClass");
     Kirin::DB::BroadbandClass->has_many(options => "Kirin::DB::BroadbandOption");
+    Kirin::DB::BroadbandServiceOption->has_a(service => "Kirin::DB::BroadbandService");
+    Kirin::DB::BroadbandServiceOption->has_a(option => "Kirin::DB::BroadbandOption");
+    Kirin::DB::BroadbandService->has_many(service_option => "Kirin::DB::BroadbandServiceOption");
     Kirin::DB::BroadbandEvent->has_a(event_date => 'Time::Piece',
       inflate => sub { Time::Piece->strptime(shift, "%Y-%m-%d") },
       deflate => 'ymd',
@@ -747,6 +763,12 @@ CREATE TABLE IF NOT EXISTS broadband_service (
     class integer,
 );
 
+CREATE TABLE IF NOT EXISTS broadband_service_option (
+    id integer primary key not null,
+    service integer,
+    option integer
+);    
+
 CREATE TABLE IF NOT EXISTS broadband_class (
     id integer primary key not null,
     name varchar(255),
@@ -759,6 +781,7 @@ CREATE TABLE IF NOT EXISTS broadband_option (
     option varchar(255),
     code varchar(255),
     price decimal(5,2),
+    setup decimal(5,2),
     required integer,
 );
 

@@ -1,0 +1,9 @@
+<h2>Not Available</h2>
+
+<p>Our checks indicate that it is not possible to supply broadband on the line you have specified.</p>
+
+<p>The reason provided for this by our supplier is : [% reason %]</p>
+
+<p>If your telephone line has only recently been installed it may be that BT have not completed the installation job and so the line is not recognised as live. If this is the case please call BT, or your telephone line provider, and ask them to close the installation job.</p>
+
+<p>If your telephone line is supplied by a company other than BT it may be that the line is not a BT line but rather is terminated onto another companies equipment at the exchagne. If that is the case you will not be able to obtain broadband service on that line as you must have a BT line (even if supplied by another company) to get broadband.</p>

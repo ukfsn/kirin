@@ -1,0 +1,34 @@
+<h2>Broadband Provider Options</h2>
+<table>
+<tr><th>Provider</th><th>Option</th><th>Provider Code</th><th>Price</th><th>Required</th></tr>
+[% FOR o = options %]
+<tr>
+    <form method="post">
+    <input type="hidden" value="[%o.id%]" name="editoption">
+    <td><input type="hidden" value="[%o.provider%]" name="provider">[%o.provider%]</td>
+    <td> <input name="option" value="[%o.option%]"> </td>
+    <td> <input name="code" value="[%o.code%]"> </td>
+    <td> <input name="price" value="[%o.price%]"> </td>
+    <td> <input name="setup" value="[%o.setup%]"> </td>
+    <td> <input name="required" value="[%o.required%]"> </td>
+    <td> <input type="submit" value="Edit"> </td>
+    </form>
+    <form method="post">
+    <input type="hidden" value="[%o.id%]" name="deleteoption">
+    <td> 
+        <input type="submit" value="Delete"> </td>
+    </form>
+</tr>
+[% END %]
+
+<tr>
+    <form method="post">
+    <td> <input name="provider" > </td>
+    <td> <input name="option" > </td>
+    <td> <input name="code" > </td>
+    <td> <input name="price" > </td>
+    <td> <input name="setup" > </td>
+    <td> <input name="required" > </td>
+    <td> <input type="submit" name="create" value="Create"> </td>
+</tr>
+</table>

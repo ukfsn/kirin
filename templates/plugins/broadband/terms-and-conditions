@@ -1,0 +1,8 @@
+<h2>Terms and Conditions</h2>
+
+[% IF provider %]
+    [% INCLUDE provider %]
+[% ELSE %]
+    INSERT OWN TERMS AND CONDITIONS HERE
+[% END %]
+

@@ -538,21 +538,21 @@ sub admin_class {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/name provider/) {
+        for (qw/name provider activation migration cease/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandClass->insert({
-            map { $_ => $mm->param($_) } qw/name provider/
+            map { $_ => $mm->param($_) } qw/name provider activation migration cease/
         });
         $mm->message('Broadband Service Class Added');
     }
     elsif ($id = $mm->param('editclass')) {
         my $class = Kirin::DB::BroadbandClass->retrieve($id);
         if ( $class ) {
-            for (qw/name provider/) {
+            for (qw/name provider activation migration cease/) {
                 $class->$_($mm->param($_));
             }
             $class->update();

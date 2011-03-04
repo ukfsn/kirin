@@ -13,9 +13,8 @@
     <td> <input name="sortorder" value="[%p.sortorder%]"> </td>
     </tr>
     <tr>
-    [% options = SimpleJson.fromJson(p.options) %]
-    [% FOR o = options.keys %]
-        <td>[% $o %] : <input name="[% $o %]" value="[% options.$o %]"> </td>
+    [% FOR o = p.options.keys %]
+        <td>[% $o %] : <input name="[% $o %]" value="[% p.options.$o %]"> </td>
     [% END %]
     </tr>
     <td> <input type="submit" value="Edit"> </td>

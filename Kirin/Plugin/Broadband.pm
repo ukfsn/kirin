@@ -773,6 +773,9 @@ CREATE TABLE IF NOT EXISTS broadband_class (
     id integer primary key not null,
     name varchar(255),
     provider varchar(255),
+    activation decimal(5,2),
+    migration decimal(5,2),
+    cease decimal(5,2)
 );
 
 CREATE TABLE IF NOT EXISTS broadband_option (

@@ -108,7 +108,7 @@ sub order {
         });
 
     stage_2:
-        # Previous step must supply service id, crd, ip address requirement + any special options
+        # Previous step must supply service id, crd, ip address + any other options
         my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
         if ( ! $service ) {
             $mm->message('Please select from the available services');
@@ -130,16 +130,15 @@ sub order {
             }
         }
 
-        my $cli = $mm->param('clid');
-
         my $order = Kirin::DB::Orders->insert( {
             customer    => $mm->{customer},
             order_type  => 'Broadband',
             module      => __PACKAGE__,
             parameters  => $json->encode( {
-                service     => $service->id,
+                service     => $service,
                 options     => $options,
-                cli         => $cli,
+                cli         => $clid,
+                crd         => $mm->param('crd')
             })
         });
         if ( ! $order ) {
@@ -196,9 +195,17 @@ sub order {
                 cost => $price
             });
             if ( ! $invoice ) {
-
+                # XXX Handle the failure to create an invoice - DO NOT PROCEED WITH ORDER
             }
-            # for each option check if there is a cost and if so add it
+            if ( $service->class->activation > 0 && ! $mac ) {
+                # This is a new activation and there is a charge
+                $invoice->add_line_item(description => "Activation Charge", cost => $service->class->activation);
+            }
+            if ( $mac && $service->class->migration > 0 ) {
+                # This is a migration and there is a migration charge
+                $invoice->add_line_item(description => "Migration Charge", cost => $service->class->migration);
+            }
+
             for my $o (keys %{$op->options}) {
                 next unless ($o->price > 0 || $o->setup > 0);
                 if ($o->setup > 0) {

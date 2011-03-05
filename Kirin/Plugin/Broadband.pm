@@ -496,9 +496,9 @@ sub admin {
         };
     }
 
-    $mm->respond('plugins/broadband/admin', {
+    $mm->respond('plugins/broadband/admin', admin => {
         products => \@products,
-        classes => \%c
+        classes => \@classes
     });
 }
 
@@ -534,9 +534,16 @@ sub admin_options {
     }
     my @options = Kirin::DB::BroadbandOption->retrieve_all();
     my @classes = Kirin::DB::BroadbandClass->retrieve_all();
-    $mm->respond('plugins/broadband/admin_options', {
+    my $classes = { };
+    for my $c (@classes) {
+        $classes->{$c->id} = {
+            name => $c->name,
+            provider => $c->provider
+        };
+    }
+    $mm->respond('plugins/broadband/admin_options', opt => {
         options => \@options,
-        classes => \@classes
+        classes => $classes
     });
 }
 

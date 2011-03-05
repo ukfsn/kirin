@@ -4,7 +4,7 @@
 [% FOR o = classes %]
 <tr>
     <form method="post">
-    <input type="hidden" value="[%o.id%]" name="editclass>
+    <input type="hidden" value="[%o.id%]" name="editclass">
     <td> <input name="name" value="[%o.name%]"> </td>
     <td> <input name="provider" value="[%o.provider%]"> </td>
     <td> <input name="activation" value="[%o.activation%]"> </td>

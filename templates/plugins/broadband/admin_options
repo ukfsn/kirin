@@ -1,7 +1,7 @@
 <h2>Broadband Provider Options</h2>
 
 <table>
-<tr><th>Class</th><th>Option</th><th>Provider Code</th><th>Price</th><th>Setup</th><th>Required</th></tr>
+<tr><th>Class</th><th>Option</th><th>Provider Code</th><th>Value</th><th>Price</th><th>Setup</th><th>Required</th></tr>
 [% FOR o = opt.options %]
 <tr>
     <form method="post">
@@ -14,9 +14,10 @@
     </td>
     <td> <input name="option" value="[%o.option%]"> </td>
     <td> <input name="code" value="[%o.code%]"> </td>
+    <td> <input name="value" value="[%o.value%]"> </td>
     <td> <input name="price" value="[%o.price%]"> </td>
     <td> <input name="setup" value="[%o.setup%]"> </td>
-    <td> <input name="required" value="[%o.required%]"> </td>
+    <td> <input type="checkbox" name="required" [% "CHECKED" IF o.required %]"> </td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
     <form method="post">
@@ -38,9 +39,10 @@
     </td>
     <td> <input name="option" > </td>
     <td> <input name="code" > </td>
+    <td> <input name="value" > </td>
     <td> <input name="price" > </td>
     <td> <input name="setup" > </td>
-    <td> <input name="required" > </td>
+    <td> <input type="checkbox" name="required" > </td>
     <td> <input type="submit" name="create" value="Create"> </td>
 </tr>
 </table>

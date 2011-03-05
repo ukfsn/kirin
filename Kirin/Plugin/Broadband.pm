@@ -500,21 +500,21 @@ sub admin_options {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/class option code price setup required/) {
+        for (qw/class option code value price setup required/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandOption->insert({
-            map { $_ => $mm->param($_) } qw/class option code price setup required/
+            map { $_ => $mm->param($_) } qw/class option code value price setup required/
         });
         $mm->message('Broadband Service Option Added');
     }
     elsif ($id = $mm->param('editoption')) {
         my $option = Kirin::DB::BroadbandOption->retrieve($id);
         if ( $option ) {
-            for (qw/class option code price setup required/) {
+            for (qw/class option code value price setup required/) {
                 $option->$_($mm->param($_));
             }
             $option->update();
@@ -790,6 +790,7 @@ CREATE TABLE IF NOT EXISTS broadband_option (
     class integer,
     option varchar(255),
     code varchar(255),
+    value varchar(255),
     price decimal(5,2),
     setup decimal(5,2),
     required integer,

@@ -488,13 +488,6 @@ sub admin {
     }
     my @products = Kirin::DB::BroadbandService->retrieve_all();
     my @classes = Kirin::DB::BroadbandClass->retrieve_all();
-    my %c = ();
-    for my $class (@classes) {
-        $c{$class->id} = {
-            name => $class->name,
-            provider => $class->provider
-        };
-    }
 
     $mm->respond('plugins/broadband/admin', admin => {
         products => \@products,

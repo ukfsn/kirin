@@ -6,6 +6,7 @@ use strict;
 sub view {
     my ($self, $mm, @args) = @_;
     my $invoice = Kirin::DB::Invoice->retrieve($args[0]);
+    # XXX Pass the VAT rate as $invoice->get_vat_rate();
     $mm->respond("plugins/invoice/view", invoice => $invoice);
 }
 
@@ -49,27 +50,36 @@ sub _setup_db {
     Kirin::DB::Subscription->might_have(invoicelineitem => "Kirin::DB::Invoicelineitem");
     Kirin::DB::Invoice->has_many(invoicelineitems => "Kirin::DB::Invoicelineitem");
     Kirin::DB::Invoice->has_a(customer => "Kirin::DB::Customer");
+    Kirin::DB::Invoice->has_a(vatrate => "Kirin::DB::Vatrates");
     Kirin::DB::Customer->has_many(invoices => "Kirin::DB::Invoice");
 }
 
 package Kirin::DB::Invoice;
 use List::Util qw(sum);
+sub default_action { "list" }
 sub total {
     my $self = shift;
     my $total = sum map {$_->cost } $self->invoicelineitems;
-    if ( ! $self->customer->vatexempt && $total > 0 ) {
-        $total *= $self->vat_rate;
+    if ( Kirin->args->{show_vat_inc} && ! $self->customer->vatexempt && $total > 0 ) {
+        # XXX calculate VAT and add it
+        $total *= ($self->vatrate->rate / 100)+1;
     }
     return $total;
 }
 
-sub vat_rate {
-    my $self = shift;
-    my @vat = Kirin::DB::VatRates->search_where( -and => {
-        startdate => { '>=', $self->issuedate },
-        enddata => { '<=', $self->issuedate }
-    });
-    return ($vat[0] / 100) + 1;
+sub get_vat_rate {
+    my $date = shift->issuedate;
+    my $d = undef;
+    if ( $date =~ /.+ .+ \d+ \d+:\d+:\d+ \d+/ ) {
+        $d = Time::Piece->strptime($date, "%a %b %d %H:%M:%S %Y");
+    }
+    else { $d = Time::Piece->strptime($date, "%F"); }
+    my $searchdate = $d->ymd;
+
+    my @vat = Kirin::DB::Vatrates->retrieve_from_sql(qq|
+        '$searchdate' BETWEEN startdate AND enddate
+    |);
+    return ($vat[0]->rate / 100);
 }
 
 sub send_all_reminders { 
@@ -141,8 +151,5 @@ sub dispatch {
     Kirin::Utils->send_email($email);
     $self->update();
 }
-
-package Kirin::DB::VatRates;
-use Class::DBI::AbstractSearch;
 
 1;

@@ -31,7 +31,8 @@ CREATE TABLE invoice (id integer primary key not null,
     customer integer,
     issued boolean,
     issuedate date,
-    paid boolean
+    paid boolean,
+    vatrate integer
 );
 CREATE TABLE invoicelineitem (
     id integer primary key not null,

@@ -110,7 +110,7 @@ sub order {
                 order_type  => 'Broadband',
                 module      => __PACKAGE__,
                 parameters  => $json->encode( {
-                    service     => $service,
+                    service     => $service->id,
                     cli         => $clid,
                 })
             });
@@ -140,38 +140,41 @@ sub order {
         });
 
     stage_3:
-        if ( ! $mm->param('crd') || ! $mm->param('id') ) {
+        if ( ! $mm->param('crd') || ! $mm->param('order') ) {
             return $mm->respond('plugins/broadband/get-clid');
         }
+        my $id = $mm->param('order');
+        goto stage_1 unless $id =~ /^\d+$/;
 
         if ( ! $self->_valid_date($mm->param('crd')) ) {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');
             goto stage_1;
         }
         
-        my $options = { };
-        for my $o (@{$service->class->options}){
-            if ( $o->required && ! $mm->param($o->code) ) {
-                $mm->message('Required option '.$o->option.' not provided');
-                goto stage_1;
-            }
-            if ( $mm->param($o->code) ) {
-                $options->{$o->id} = $mm->param($o->code);
-            }
+        my $order = Kirin::DB::Order->retrieve($id);
+        my $params = $json->decode($order->parameters);
+
+        my $service = Kirin::DB::BroadbandService->retrieve($params->{service});
+        for my $o ($service->class->options) {
+            $params->{options}->{$o->code}++;
         }
+
+        $order->parameters($json->encode($params));
+        $order->update();
 
         return $mm->respond('plugins/broadband/terms-and-conditions', {
             order => $order->id,
-            provider => $service->provider
         });
 
     stage_4:
         if (!$mm->param('tc_accepted')) { # Back you go!
             $mm->param('Please accept the terms and conditions to complete your order'); 
-            goto stage_2;
+            goto stage_3;
         }
+        my $id = $mm->param('order');
+        goto stage_1 unless $id =~ /^\d+$/;
 
-        my $order = Kirin::DB::Orders->retrieve($mm->param('orderid'));
+        my $order = Kirin::DB::Orders->retrieve($id);
         if ( ! $order ) {
             $mm->message('Our system is unable to retrieve details of your order');
             goto stage_1;

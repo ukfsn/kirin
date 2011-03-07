@@ -5,7 +5,10 @@ use strict;
 
 sub view {
     my ($self, $mm, @args) = @_;
-    my $invoice = Kirin::DB::Invoice->retrieve($args[0]);
+    my $id = $args[0];
+    $self->list() unless $id =~ /^\d+$/;
+    my $invoice = Kirin::DB::Invoice->retrieve($id);
+    if ( ! $invoice ) { $self->list(); }
     $mm->respond("plugins/invoice/view", invoice => $invoice);
 }
 

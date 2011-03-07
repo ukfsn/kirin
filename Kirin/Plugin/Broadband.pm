@@ -81,13 +81,12 @@ sub order {
         my @services = Kirin::DB::BroadbandService->retrieve_all();
         foreach my $s (@services) {
             my $options = { };
-            for my $o (@{$s->class->options}) {
-                $options->{$o->id} = {
-                    option => $o->option,
-                    code => $o->code,
+            for my $o ($s->class->options) {
+                $options->{$o->code} = {
+                    id => $o->id,
+                    name => $o->option,
                     price => $o->price,
                     setup => $o->setup,
-                    required => $o->required,
                 };
             }
             $avail{$s->sortorder} = {
@@ -500,21 +499,21 @@ sub admin_options {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/class option code value price setup required/) {
+        for (qw/class option code value price setup/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandOption->insert({
-            map { $_ => $mm->param($_) } qw/class option code value price setup required/
+            map { $_ => $mm->param($_) } qw/class option code value price setup/
         });
         $mm->message('Broadband Service Option Added');
     }
     elsif ($id = $mm->param('editoption')) {
         my $option = Kirin::DB::BroadbandOption->retrieve($id);
         if ( $option ) {
-            for (qw/class option code value price setup required/) {
+            for (qw/class option code value price setup/) {
                 $option->$_($mm->param($_));
             }
             $option->update();
@@ -793,7 +792,6 @@ CREATE TABLE IF NOT EXISTS broadband_option (
     value varchar(255),
     price decimal(5,2),
     setup decimal(5,2),
-    required integer,
 );
 
 CREATE TABLE IF NOT EXISTS broadband_searches (

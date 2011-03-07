@@ -4,8 +4,7 @@ sub default_action { "list" }
 use strict;
 
 sub view {
-    my ($self, $mm, @args) = @_;
-    my $id = $args[0];
+    my ($self, $mm, $id) = @_;
     $self->list() unless $id =~ /^\d+$/;
     my $invoice = Kirin::DB::Invoice->retrieve($id);
     if ( ! $invoice ) { $self->list(); }

@@ -9,28 +9,24 @@
 
 <p>To place an order for service please select the service and any options you require from the list below.</p>
 
+<form action="order" method="post">
+<input type="hidden" name="stage" value="2">
 <p>Select the service you require: 
-
 <select name="service">
 [% FOR s=result.services.keys.nsort %]
+    
     <option value="[% result.services.$s.id %]">[%result.services.$s.name%] - &pound;
     [% IF result.services.$s.name.match('Business') %]
         [% result.services.$s.price %] + VAT
     [% ELSE %]
         [% USE format %]
-        [% FILTER format('%01.2f') %][% result.services.$s.price * 1.2 %][%END%] inc. VAT
+        [% FILTER format('%01.2f') %][% result.services.$s.price * (1+(result.vatrate / 100)) %][%END%] inc. VAT
     [% END %]
     </option>
 [% END %]
 </select><br />
-
-Requested install date: <select name="crd">
-    [% USE date %]
-    [% FOR t IN result.services.$s.crd %]
-        <option value="[% date.format(t, "%Y-%m-%d") |html %]">[% date.format(t, "%e %B %Y") %]</option>
-    [% END %]
-</select><br />
-</p>
+<input type="submit" value="Select Service">
+</form>
 
 [% ELSE %]
 <h2> Sorry </h2>

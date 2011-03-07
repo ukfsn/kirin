@@ -80,44 +80,75 @@ sub order {
 
         my @services = Kirin::DB::BroadbandService->retrieve_all();
         foreach my $s (@services) {
-            my $options = { };
-            for my $o ($s->class->options) {
-                $options->{$o->code} = {
-                    id => $o->id,
-                    name => $o->option,
-                    price => $o->price,
-                    setup => $o->setup,
-                };
-            }
             $avail{$s->sortorder} = {
                 name => $s->name,
                 id => $s->id,
-                crd => defined $services{$s->code} ? 
-                    $self->_dates($services{$s->code}->{first_date}) : 
-                    $self->_dates($services{qualification}->{first_date}),
+                crd => $services{$s->code}->{first_date},
                 price => $s->price,
                 speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
-                options => $options,
             };
         }
 
         return $mm->respond('plugins/broadband/signup', result => {
             services => \%avail,
-            qualification => $services{qualification}
+            qualification => $services{qualification},
+            vatrate => Kirin::Plugin->_get_vat_rate()
         });
 
     stage_2:
         # Previous step must supply service id, crd, ip address + any other options
-        my $service = Kirin::DB::BroadbandService->retrieve($mm->param('id'));
+        my $service = Kirin::DB::BroadbandService->retrieve($mm->param('service'));
         if ( ! $service ) {
             $mm->message('Please select from the available services');
             goto stage_1;
         }
+
+        my $order = $mm->param('id');
+        if ( ! $order ) {
+            $order = Kirin::DB::Orders->insert( {
+                customer    => $mm->{customer},
+                order_type  => 'Broadband',
+                module      => __PACKAGE__,
+                parameters  => $json->encode( {
+                    service     => $service,
+                    cli         => $clid,
+                })
+            });
+            if ( ! $order ) {
+                Kirin::Utils->email_boss(
+                    severity    => "error",
+                    customer    => $mm->{customer},
+                    context     => "Trying to create order for broadband",
+                    message     => "Cannot create order entry for broadband ".$service->name.' on '.$clid
+                );
+                $mm->message("Our system is unable to record the details of your order.");
+                return $mm->respond("plugins/broadband/error");
+            }
+        }
+        else {
+            $order = Kirin::DB::Orders->retrieve($order);
+        }
+
+        my @options = $service->class->options;
+
+        return $mm->respond('plugins/broadband/options', order => {
+            id => $order->id,
+            crd => defined $mm->param('crd') ? $self->_dates($mm->param('crd')) : $self->_dates(),
+            options => \@options,
+            service => $service,
+            vatrate => Kirin::Plugin->_get_vat_rate()
+        });
+
+    stage_3:
+        if ( ! $mm->param('crd') || ! $mm->param('id') ) {
+            return $mm->respond('plugins/broadband/get-clid');
+        }
+
         if ( ! $self->_valid_date($mm->param('crd')) ) {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');
             goto stage_1;
         }
-
+        
         my $options = { };
         for my $o (@{$service->class->options}){
             if ( $o->required && ! $mm->param($o->code) ) {
@@ -129,33 +160,12 @@ sub order {
             }
         }
 
-        my $order = Kirin::DB::Orders->insert( {
-            customer    => $mm->{customer},
-            order_type  => 'Broadband',
-            module      => __PACKAGE__,
-            parameters  => $json->encode( {
-                service     => $service,
-                options     => $options,
-                cli         => $clid,
-                crd         => $mm->param('crd')
-            })
-        });
-        if ( ! $order ) {
-            Kirin::Utils->email_boss(
-                severity    => "error",
-                customer    => $mm->{customer},
-                context     => "Trying to create order for broadband",
-                message     => "Cannot create order entry for broadband ".$service->name.' on '.$clid
-            );
-            $mm->message("Our system is unable to record the details of your order.");
-            return $mm->respond("plugins/broadband/error");
-        }
         return $mm->respond('plugins/broadband/terms-and-conditions', {
             order => $order->id,
             provider => $service->provider
         });
 
-    stage_3:
+    stage_4:
         if (!$mm->param('tc_accepted')) { # Back you go!
             $mm->param('Please accept the terms and conditions to complete your order'); 
             goto stage_2;
@@ -171,7 +181,7 @@ sub order {
 
         return $mm->respond('plugins/broadband/order-summary', order => $summary);
 
-    stage_4:
+    stage_5:
         if (!$mm->param('order_confirmed')) {
             $mm->param('We cannot process an order until you confirm the order details');
             goto stage_3;

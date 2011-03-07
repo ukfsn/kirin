@@ -127,4 +127,19 @@ sub _validate_password {
     if ($check == 127) { $mm->message("Password is incredibly weak") }
     return 1;
 }
+
+sub _get_vat_rate {
+    my ($self, $date) = @_;
+    if ( ! $date ) {
+        $date = Time::Piece->new();
+    }
+    else {
+        $date = Time::Piece->strptime($date, "%F");
+    }
+    my $searchdate = $date->ymd;
+    my $vat = Kirin::DB::Vatrates->retrieve_from_sql(qq|
+        '$searchdate' BETWEEN startdate AND enddate|);
+    return $vat->first->rate;
+}
+
 1;

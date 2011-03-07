@@ -6,7 +6,6 @@ use strict;
 sub view {
     my ($self, $mm, @args) = @_;
     my $invoice = Kirin::DB::Invoice->retrieve($args[0]);
-    # XXX Pass the VAT rate as $invoice->get_vat_rate();
     $mm->respond("plugins/invoice/view", invoice => $invoice);
 }
 
@@ -60,26 +59,7 @@ sub default_action { "list" }
 sub total {
     my $self = shift;
     my $total = sum map {$_->cost } $self->invoicelineitems;
-    if ( Kirin->args->{show_vat_inc} && ! $self->customer->vatexempt && $total > 0 ) {
-        # XXX calculate VAT and add it
-        $total *= ($self->vatrate->rate / 100)+1;
-    }
     return $total;
-}
-
-sub get_vat_rate {
-    my $date = shift->issuedate;
-    my $d = undef;
-    if ( $date =~ /.+ .+ \d+ \d+:\d+:\d+ \d+/ ) {
-        $d = Time::Piece->strptime($date, "%a %b %d %H:%M:%S %Y");
-    }
-    else { $d = Time::Piece->strptime($date, "%F"); }
-    my $searchdate = $d->ymd;
-
-    my @vat = Kirin::DB::Vatrates->retrieve_from_sql(qq|
-        '$searchdate' BETWEEN startdate AND enddate
-    |);
-    return ($vat[0]->rate / 100);
 }
 
 sub send_all_reminders { 
@@ -134,8 +114,18 @@ sub cancel {
 sub dispatch {
     my $self = shift;
     return if $self->issued() or $self->total <= 0;
+
+    my $date = Time::Piece->new();
+
     $self->issued(1);
-    $self->issuedate(Time::Piece->new());
+    $self->issuedate($date->ymd);
+
+    my $searchdate = $date->ymd;
+    my $vat = Kirin::DB::Vatrates->retrieve_from_sql(qq|
+            '$searchdate' BETWEEN startdate AND enddate
+            |);
+    $self->vatrate($vat->first->id);
+
     my $t = Template->new({ 
         INCLUDE_PATH => Kirin->args->{"email_template_path"} || "templates" 
     }); 

@@ -10,7 +10,13 @@
 Issued ([%i.issuedate%])
 [% ELSE %] Pending [% END; END %]
 </td>
-<td>[%money(i.total)%]</td>
+<td>
+[% IF i.customer.vatexempt %]
+    [%money(i.total)%]
+[% ELSE %]
+    [%money(i.total * ((i.vatrate.rate / 100)+1))%]
+[% END %]    
+    </td>
 <td> <a href="/invoice/view/[%i.id%]">Click here to view</a></td>
 [% IF self.user.is_root %]
 <td>

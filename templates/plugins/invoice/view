@@ -9,7 +9,13 @@
 Issued ([%invoice.issuedate%])
 [% ELSE %] Pending [% END; END %]
 </td></tr>
-<tr><th>Total</th><td>[%money(invoice.total)%]</td></tr>
+[% IF invoice.customer.vatexempt %]
+    <tr><th>Total</th><td>[%money(invoice.total)%]</td></tr>
+[% ELSE %]
+    <tr><th>Subtotal</th><td>[% money(invoice.total) %]</td></tr>
+    <tr><th>VAT</th><td>[% money(invoice.total * (invoice.vatrate.rate / 100)) %]</td></tr>
+    <tr><th>Total</th><td>[% money(invoice.total*(1 + (invoice.vatrate.rate / 100)))%]</td></tr>
+[% END %]    
 </table>
 
 <p> Invoice details </p>

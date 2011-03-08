@@ -1,3 +1,7 @@
+<div id="broadband-progress-bar">
+<p>Check Line - Select Service - <b>Terms &amp; Conditions</b> - Order Summary</p>
+</div>
+
 <h2>Terms and Conditions</h2>
 
 [% IF provider %]

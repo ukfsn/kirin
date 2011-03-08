@@ -87,13 +87,15 @@ sub order {
                 crd => defined $services{$s->code}->{first_date} ? 
                     $self->_dates($services{$s->code}->{first_date}) : 
                     $self->_dates(),
-                options => $s->options,
                 price => $s->price,
                 speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
+                options => $s->class->options,
             };
         }
 
         return $mm->respond('plugins/broadband/signup', result => {
+            cli => $clid,
+            mac => $mac,
             services => \%avail,
             qualification => $services{qualification},
             vatrate => Kirin::Plugin->_get_vat_rate()
@@ -123,7 +125,7 @@ sub order {
             order_type  => 'Broadband',
             module      => __PACKAGE__,
             parameters  => $json->encode( {
-                service     => $service->id,
+                service     => $service,
                 cli         => $clid,
                 crd         => $mm->param('crd'),
                 options     => $options

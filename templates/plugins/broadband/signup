@@ -1,31 +1,69 @@
+[% MACRO money(x) BLOCK; "&#163;"; x | format("%.2f"); END %]
+<div id="broadband-progress-bar">
+<p>Check Line - <b>Select Service</b> - Terms &amp; Conditions - Order Summary</p>
+</div>
 [% IF result.services.size > 0 %]
-<h2>Sign up for broadband</h2>
 
-<p>Our checks indicate that your line should be able to sustain an ADSL broadband connection with speeds of up to [% result.qualification.top %] kb/s. Please note that this is an estimated maximum speed and actual speeds may vary depending upon the length and quality of your line and the equipment you use.</p>
-
-[% IF result.qualification.fttc.down %]
-<p>The checks also indicate that your line should be able to sustain a FTTC broadband connection with download speeds of up to [% result.qualification.fttc.down %] kb/s.</p>
+[% IF result.qualification.top %]
+<div id="broadband-speed">
+    <p>Expected Maximum ADSL Download Rate: [% result.qualification.top %] kb/s</p>
+    [% IF result.qualification.fttc.down %]
+        <p>Expected Maximum Fibre Broadband Download Rate: [% result.qualification.fttc.down %] kb/s<br />
+        Expected Maximum Fibre Broadband Upload Rate: [% result.qualification.fttc.up %] kb/s</p>
+    [% END %]
+</div>
 [% END %]
+
+[% IF result.qualification.notclear %]
+<div id="broadband-already-present">
+    <p>Your line [%result.clid%] appears to already have an active broadband service.</p>
+    [% IF result.qualification.notclear.llu %]
+        <p>Your existing broadband service is LLU based. This means we are not able to offer free migration.</p>
+    [% END %]
+</div>    
+[% END%]
 
 <p>To place an order for service please select the service and any options you require from the list below.</p>
 
 <form action="order" method="post">
 <input type="hidden" name="stage" value="2">
+<input type="hidden" name="clid" value="[%result.clid%]">
+<input type="hidden" name="mac" value="[%result.mac%]">
+
 <p>Select the service you require: 
-<select name="service">
+<table>
+<tr><th>Select</th><th>Service</th><th>Price</th><th>Request Date</th><th>Special Options</th></tr>
 [% FOR s=result.services.keys.nsort %]
-    
-    <option value="[% result.services.$s.id %]">[%result.services.$s.name%] - &pound;
-    [% IF result.services.$s.name.match('Business') %]
-        [% result.services.$s.price %] + VAT
-    [% ELSE %]
+<tr>
+    <td><input type="radio" name="service" value="[% result.services.$s.id %]"></td>
+    <td>[%result.services.$s.name%]</td>
+    <td>
         [% USE format %]
-        [% FILTER format('%01.2f') %][% result.services.$s.price * (1+(result.vatrate / 100)) %][%END%] inc. VAT
+        [% IF result.services.$s.name.match('Business') %]
+            [% money(result.services.$s.price) %] + VAT
+        [% ELSE %]
+            [% money(result.services.$s.price * (1+(result.vatrate / 100))) %] inc. VAT
+        [% END %]
+    </td>
+    <td>
+    <select name="crd">
+        [% USE date %]
+        [% FOR d = result.services.$s.crd %]
+            <option value="[% result.services.$s.id %]_[% date.format(d, "%Y-%m-%d") |html %]">[% date.format(d, "%e %B %Y") %]</option>
+        [% END %]
+    </select>
+    </td>
+    <td>
+    [% IF result.qualification.annexm %]
+        <input type="radio" name="annexm"> Annex M &pound;8.50+VAT 
     [% END %]
-    </option>
-[% END %]
-</select><br />
-<input type="submit" value="Select Service">
+    Put service specific options here
+    </td>
+</tr>
+[%END%]
+</table>
+            
+<input type="submit" value="Continue">
 </form>
 
 [% ELSE %]

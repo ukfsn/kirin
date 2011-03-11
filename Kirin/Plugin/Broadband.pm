@@ -126,7 +126,7 @@ sub order {
             order_type  => 'Broadband',
             module      => __PACKAGE__,
             parameters  => $json->encode( {
-                service     => $service,
+                service     => $service->id,
                 cli         => $clid,
                 crd         => $mm->param('crd'),
                 options     => $options

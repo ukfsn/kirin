@@ -51,10 +51,10 @@
         [% END %]
     </td>
     <td>
-    <select name="crd">
+    <select name="[% result.services.$s.id %]_crd">
         [% USE date %]
         [% FOR d = result.services.$s.crd %]
-            <option value="[% result.services.$s.id %]_[% date.format(d, "%Y-%m-%d") |html %]">[% date.format(d, "%e %B %Y") %]</option>
+            <option value="[% date.format(d, "%Y-%m-%d") |html %]">[% date.format(d, "%e %B %Y") %]</option>
         [% END %]
     </select>
     </td>

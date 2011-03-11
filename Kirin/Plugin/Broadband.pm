@@ -111,7 +111,8 @@ sub order {
             goto stage_1;
         }
 
-        if ( ! $self->_valid_date($mm->param('crd')) ) {
+        my $crd = $mm->param('service').'_crd';
+        if ( ! $self->_valid_date($crd) ) {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');
             goto stage_1;
         }
@@ -129,7 +130,7 @@ sub order {
             parameters  => $json->encode( {
                 service     => $service->id,
                 cli         => $clid,
-                crd         => $mm->param('crd'),
+                crd         => $crd,
                 options     => $options
             })
         });

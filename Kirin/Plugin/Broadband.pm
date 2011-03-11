@@ -125,6 +125,7 @@ sub order {
             customer    => $mm->{customer},
             order_type  => 'Broadband',
             module      => __PACKAGE__,
+            status      => 'Building',
             parameters  => $json->encode( {
                 service     => $service->id,
                 cli         => $clid,

@@ -89,6 +89,7 @@ sub order {
                     $self->_dates(),
                 price => $s->price,
                 speed => defined $services{$s->code} ? $services{$s->code}->{max_speed} : undef,
+                class => $s->class->name,
                 options => $s->class->options,
             };
         }
@@ -172,7 +173,7 @@ sub order {
             goto stage_3;
         }
 
-        my $order = Kirin::DB::Orders->retrieve($mm->param('orderid'));
+        my $order = Kirin::DB::Orders->retrieve($mm->param('order'));
         if ( ! $order ) {
             $mm->message('Our system is unable to retrieve details of your order');
             goto stage_1;
@@ -193,11 +194,26 @@ sub order {
             }
             if ( $service->class->activation > 0 && ! $mac ) {
                 # This is a new activation and there is a charge
-                $invoice->add_line_item(description => "Activation Charge", cost => $service->class->activation);
+                $invoice->add_line_item(description => "Broadband Activation Charge", cost => $service->class->activation);
             }
-            if ( $mac && $service->class->migration > 0 ) {
-                # This is a migration and there is a migration charge
-                $invoice->add_line_item(description => "Migration Charge", cost => $service->class->migration);
+
+            # Get the qualification data for the line to see if it is currently LLU
+            # if it is LLU (unbundled) charge appropriately
+            if ( $mac ) {
+                my $search = Kirin::DB::BroadbandSearches->search( {
+                    customer => $mm->{customer},
+                    telno => $op->{clid}
+                } );
+                my $avail = $json->decode($search->first->result);
+
+                my $charge = $service->class->migration;
+                if ( $avail->{qualification}->{unbundled} ) {
+                    $charge = $service->class->unbundledmigration;
+                }
+
+                if ( $charge > 0 ) {
+                    $invoice->add_line_item(description => "Migration Charge", cost => $charge);
+                }
             }
 
             for my $o (keys %{$op->options}) {
@@ -539,21 +555,21 @@ sub admin_class {
     if (!$mm->{user}->is_root) { return $mm->respond('403handler') }
     my $id = undef;
     if ($mm->param('create')) {
-        for (qw/name provider activation migration cease/) {
+        for (qw/name provider activation migration unbundledmigration cease/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
             $mm->respond('plugins/broadband/admin');
         }
         my $new = Kirin::DB::BroadbandClass->insert({
-            map { $_ => $mm->param($_) } qw/name provider activation migration cease/
+            map { $_ => $mm->param($_) } qw/name provider activation migration unbundledmigration cease/
         });
         $mm->message('Broadband Service Class Added');
     }
     elsif ($id = $mm->param('editclass')) {
         my $class = Kirin::DB::BroadbandClass->retrieve($id);
         if ( $class ) {
-            for (qw/name provider activation migration cease/) {
+            for (qw/name provider activation migration unbundledmigration cease/) {
                 $class->$_($mm->param($_));
             }
             $class->update();
@@ -776,6 +792,7 @@ CREATE TABLE IF NOT EXISTS broadband_class (
     provider varchar(255),
     activation decimal(5,2),
     migration decimal(5,2),
+    unbundledmigration decimal(5,2),
     cease decimal(5,2)
 );
 

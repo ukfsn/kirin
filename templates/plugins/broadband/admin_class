@@ -1,6 +1,6 @@
 <h2>Broadband Service Class</h2>
 <table>
-<tr><th>Class</th><th>Provider</th><th>Activation</th><th>Migration</th><th>Cease</th></tr>
+<tr><th>Class</th><th>Provider</th><th>Activation</th><th>Migration</th><th>LLU Migration</th><th>Cease</th></tr>
 [% FOR o = classes %]
 <tr>
     <form method="post">
@@ -9,6 +9,7 @@
     <td> <input name="provider" value="[%o.provider%]"> </td>
     <td> <input name="activation" value="[%o.activation%]"> </td>
     <td> <input name="migration" value="[%o.migration%]"> </td>
+    <td> <input name="unbundledmigration" value="[%o.unbundledmigration%]"> </td>
     <td> <input name="cease" value="[%o.cease%]"> </td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
@@ -26,6 +27,7 @@
     <td> <input name="provider" > </td>
     <td> <input name="activation" > </td>
     <td> <input name="migration" > </td>
+    <td> <input name="unbundledmigration" > </td>
     <td> <input name="cease" > </td>
     <td> <input type="submit" name="create" value="Create"> </td>
 </tr>

@@ -33,7 +33,12 @@
 <p>Select the service you require: 
 <table>
 <tr><th>Select</th><th>Service</th><th>Price</th><th>Request Date</th><th>Special Options</th></tr>
+[% currentclass = '-' %]
 [% FOR s=result.services.keys.nsort %]
+[% IF currentclass != result.services.$s.class %]
+<tr><th colspan=5>[% result.services.$s.class %]</th></tr>
+[% currentclass = result.services.$s.class %]
+[% END %]
 <tr>
     <td><input type="radio" name="service" value="[% result.services.$s.id %]"></td>
     <td>[%result.services.$s.name%]</td>

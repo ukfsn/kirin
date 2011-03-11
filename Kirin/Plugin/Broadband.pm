@@ -129,7 +129,7 @@ sub order {
             status      => 'Building',
             parameters  => $json->encode( {
                 service     => $service->id,
-                cli         => $clid,
+                clid        => $clid,
                 crd         => $crd,
                 options     => $options
             })
@@ -187,19 +187,23 @@ sub order {
         if ( $service->billed ) {
             my $price = $service->price;
             my $invoice = $mm->{customer}->bill_for({
-                description => 'Broadband Order: '.$service->name.' on '.$op->{cli},
+                description => 'Broadband Order: '.$service->name.' on '.$op->{clid},
                 cost => $price
             });
             if ( ! $invoice ) {
-                # XXX Handle the failure to create an invoice - DO NOT PROCEED WITH ORDER
+                Kirin::Utils->email_boss(
+                    severity    => "error",
+                    customer    => $mm->{customer},
+                    context     => "Trying to create broadband invoice",
+                    message     => "Cannot create invoice for broadband ".$service->name.' on '.$op->{clid}
+                );
+                $mm->message("Our system is unable to record the details of your order.");
+                return $mm->respond("plugins/broadband/error");
             }
-            if ( $service->class->activation > 0 && ! $mac ) {
-                # This is a new activation and there is a charge
+            if ( ! $mac && $service->class->activation > 0 && ) {
                 $invoice->add_line_item(description => "Broadband Activation Charge", cost => $service->class->activation);
             }
 
-            # Get the qualification data for the line to see if it is currently LLU
-            # if it is LLU (unbundled) charge appropriately
             if ( $mac ) {
                 my $search = Kirin::DB::BroadbandSearches->search( {
                     customer => $mm->{customer},
@@ -259,18 +263,19 @@ sub process {
     my $orderid = undef;
     my $serviceid = undef;
     eval { 
-        ($orderid, $serviceid) = $handle->order( ); # XXX needs parameters - perhaps params need to be stored using param names as db keys
+        ($orderid, $serviceid) = $handle->order( ); # XXX needs parameters 
     };
-    if ( $@ ) {
+    if ( $@ ) { 
         # XXX handle the error
         return;
     }
     
     my $bb = Kirin::DB::Broadband->insert ( {
         customer => $order->customer,
-        telno => $order->{parameters}->{clid},
-        service => $order->{parameters},
+        telno => $op->{clid},
+        service => $op->service,
         token => $serviceid,
+        options => $op->options,
         status => 'Submitted'
     });
     $bb->record_event('order', 'Order Submitted');
@@ -774,6 +779,7 @@ CREATE TABLE IF NOT EXISTS broadband (
     customer integer,
     telno varchar(12),
     service integer,
+    options text,
     token varchar(255),
     status varchar(255)
 );

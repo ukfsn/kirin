@@ -9,7 +9,7 @@
 <tr>
 <td>[%b.telno%]</td>
 <td>[%b.service.name%]</td>
-<td>[%b.service.provider%]</td>
+<td>[%b.service.class.provider%]</td>
 <td>[%b.token%]</td>
 <td>[%b.status%]</td>
 <td>

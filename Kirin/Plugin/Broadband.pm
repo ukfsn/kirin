@@ -22,7 +22,7 @@ sub list {
 
 sub view {
     my ($self, $mm, $id) = @_;
-    if ( ! $id ){$self->list(); return;}
+    if ( ! $id || $id !~ /^\d+%/ ){$self->list(); return;}
     my $bb = $self->_get_service($mm, $id);
     if (! $bb) { $self->list($mm); return; }
     my %details = eval { 
@@ -238,6 +238,8 @@ sub order {
 
 sub process {
     my ($self, $id) = @_;
+    return unless $id =~ /^\d+$/;
+
     my $order = Kirin::DB::Orders->retrieve($id);
     if ( ! $order || ( $order->invoice && ! $order->invoice->paid ) ) {
         return;
@@ -277,6 +279,7 @@ sub process {
 
 sub request_mac {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -302,6 +305,7 @@ sub request_mac {
 
 sub password_change {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
     
@@ -329,6 +333,7 @@ sub password_change {
 
 sub regrade {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -352,6 +357,7 @@ sub regrade {
 
 sub cancel { 
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -388,6 +394,7 @@ sub cancel {
 
 sub interleaving {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -416,6 +423,7 @@ sub interleaving {
 
 sub sessions {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -434,6 +442,7 @@ sub sessions {
 
 sub usage {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -441,6 +450,7 @@ sub usage {
 
 sub usagehistory {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -448,6 +458,7 @@ sub usagehistory {
 
 sub events {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
@@ -457,6 +468,7 @@ sub events {
 
 sub _get_service {
     my ( $self, $mm, $id ) = @_;
+    return unless $id =~ /^\d+$/;
 
     my $bb = Kirin::DB::Broadband->retrieve($id);
     if ( ! $bb ) { return; }
@@ -528,6 +540,10 @@ sub admin_options {
         $mm->message('Broadband Service Option Added');
     }
     elsif ($id = $mm->param('editoption')) {
+        if ( $id !~ /^\d+$/ ) {
+            $mm->message('Option ID not numeric. Do not change form elements');
+            next;
+        }
         my $option = Kirin::DB::BroadbandOption->retrieve($id);
         if ( $option ) {
             for (qw/class option code value price setup/) {
@@ -573,6 +589,10 @@ sub admin_class {
         $mm->message('Broadband Service Class Added');
     }
     elsif ($id = $mm->param('editclass')) {
+        if ( $id !~ /^\d+$/ ) {
+            $mm->message('Class ID not numeric. Do not change form elements');
+            next;
+        }
         my $class = Kirin::DB::BroadbandClass->retrieve($id);
         if ( $class ) {
             for (qw/name provider activation migration unbundledmigration cease/) {

@@ -179,14 +179,13 @@ sub order {
             $mm->message('Our system is unable to retrieve details of your order');
             goto stage_1;
         }
+        $order->set_status("Ready");
         my $op = $json->decode($order->parameters);
-
-        my $invoice = undef;
 
         my $service = Kirin::DB::BroadbandService->retrieve($op->service);
         if ( $service->billed ) {
             my $price = $service->price;
-            $invoice = $mm->{customer}->bill_for({
+            my $invoice = $mm->{customer}->bill_for({
                 description => 'Broadband Order: '.$service->name.' on '.$op->{cli},
                 cost => $price
             });
@@ -244,10 +243,13 @@ sub process {
         return;
     }
     if ( $order->module ne __PACKAGE__ ) { return; }
+    return if ( $order->status ne 'Ready' || $order->status ne 'Invoiced' );
     
     my $op = $json->decode($order->parameters);
+    my $service = Kirin::DB::BroadbandService->retrieve($op->service);
+    return if ! $service;
 
-    my $handle = Kirin::DB::Broadband->provider_handle($op->service->provider);
+    my $handle = Kirin::DB::Broadband->provider_handle($service->class->provider);
     # XXX Verify the order details are valid
 
     # XXX place the order
@@ -377,6 +379,9 @@ sub cancel {
     $bb->status('live-ceasing');
     $bb->record_event('cease', 'Cease order placed');
 
+    # XXX $out may contain an order reference for the cease which needs to
+    # XXX needs to be recorded
+
     $mm->message('Cease request sent to DSL provider');
     $self->view($mm, $id);
 }
@@ -469,7 +474,7 @@ sub admin {
     my $id = undef;
 
     if ($mm->param('create')) {
-        for (qw/name code provider class price sortorder/) {
+        for (qw/name code class price sortorder/) {
             if ( ! $mm->param($_) ) {
                 $mm->message("You must specify the $_ parameter");
             }
@@ -477,7 +482,7 @@ sub admin {
         }
 
         my $new = Kirin::DB::BroadbandService->insert({
-            map { $_ => $mm->param($_) } qw/name code provider class price sortorder/
+            map { $_ => $mm->param($_) } qw/name code class price sortorder/
         });
         $mm->message('Broadband Service Added');
     }
@@ -485,7 +490,7 @@ sub admin {
     elsif ($id = $mm->param('editproduct')) {
         my $product = Kirin::DB::BroadbandService->retrieve($id);
         if ( $product ) {
-            for (qw/name code provider class price sortorder/) {
+            for (qw/name code class price sortorder/) {
                 $product->$_($mm->param($_));
             }
             $product->update();
@@ -674,7 +679,7 @@ package Kirin::DB::Broadband;
 
 sub provider_handle {
     my $self = shift;
-    my $p = shift || $self->service->provider;
+    my $p = shift || $self->service->class->provider;
     my $module = "Net::DSLProvider::".ucfirst($p);
     $module->require or die "Can't find a provider module for $p:$@";
     

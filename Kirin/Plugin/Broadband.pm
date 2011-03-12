@@ -200,7 +200,7 @@ sub order {
                 $mm->message("Our system is unable to record the details of your order.");
                 return $mm->respond("plugins/broadband/error");
             }
-            if ( ! $mac && $service->class->activation > 0 && ) {
+            if ( ! $mac && $service->class->activation > 0 ) {
                 $invoice->add_line_item(description => "Broadband Activation Charge", cost => $service->class->activation);
             }
 
@@ -253,6 +253,7 @@ sub process {
     return if ( $order->status ne 'Ready' || $order->status ne 'Invoiced' );
     
     my $op = $json->decode($order->parameters);
+    my $customer = Kirin::DB::Customer->retrieve($op->customer);
     my $service = Kirin::DB::BroadbandService->retrieve($op->service);
     return if ! $service;
 
@@ -262,9 +263,56 @@ sub process {
     # XXX place the order
     my $orderid = undef;
     my $serviceid = undef;
-    eval { 
-        ($orderid, $serviceid) = $handle->order( ); # XXX needs parameters 
-    };
+    my %order = (
+        "client-ref" => $service->id,
+        "prod-id" => $service->code,
+        "cli" => $op->{clid},
+        crd => $op->{crd},
+        "routed-ip" => defined $op->{ip} ? $op->{ip} : 'N',
+        "allocation-size" => defined $op->{ip} ? $op->{ip} : '',
+        totl => 'Y',
+        topup => 'TOPUP', # XXX should be a configurable option
+        "payment-method" => 2, # XXX should be a configurable option
+        "initial-payment" => "DirectDebit", # XXX should be a configurable option
+        "ongoing-payment" => "DirectDebit", # XXX should be a configurable option
+        "contract-term" => 1, # XXX should be a class setting?
+        "billing-period" => "Monthly", # XXX should be a configurable option
+        "isp-name" => "Enta", # XXX is this needed?
+        linespeed => "RA24", # XXX needs to come from qualification data
+        title => $customer->title,
+        forename => $customer->forename,
+        surname => $customer->surname,
+        company => $customer->org,
+        street => $customer->address,
+        city => $customer->town,
+        county => $customer->county,
+        postcode => $customer->postcode,
+        telephone => $customer->phone,
+        email => $customer->email,
+        fax => $customer->fax,
+        );
+    if ( $customer->bb_customer_no ) {
+        $order{"customer-id"} = $customer->bb_customer_no;
+    }
+    else {
+        $order{"customer-id"} = "New";
+        my %billing = (
+            ctitle => $customer->title,
+            cforename => $customer->forename,
+            csurname => $customer->surname,
+            ccompany => $customer->org,
+            cstreet => $customer->address,
+            ccity => $customer->town,
+            ccounty => $customer->county,
+            cpostcode => $customer->postcode,
+            ctelephone => $customer->phone,
+            cemail => $customer->email,
+            cfax => $customer->fax,
+            "customer-id" => "New",
+        );
+        @order{keys %billing} = values %billing;
+    }
+    eval { ($orderid, $serviceid) = $handle->order( %order ); };
     if ( $@ ) { 
         # XXX handle the error
         return;

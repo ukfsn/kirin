@@ -30,7 +30,7 @@ sub view {
     };
     if ($@) {
         warn $@;
-        $mm->message('We are currently unable to retrieve details for this service.');
+        $mm->message('We are currently unable to retrieve details for this service from our supplier.');
     }
     my $service = { bb => $bb, details => \%details };
     return $mm->respond('plugins/broadband/'.$bb->service->provider.'/view', service => $service);

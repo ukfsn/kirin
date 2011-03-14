@@ -8,7 +8,7 @@ sub _skip_auth { "ipn" }
 
 sub cancel { 
     my ($self, $mm) = @_;
-    my $frob = $mm->{req}->env->{"plack.session"}->get("paypal_frob");
+    my $frob = $mm->session->get("paypal_frob");
     my ($pp) = Kirin::DB::Paypal->search(magic_frob => $frob);
     if (!$pp) { # Something's gone weird, return them to their customer page
         return Kirin::Plugin::Customer->view($mm);
@@ -16,7 +16,7 @@ sub cancel {
     my $invoice = $pp->invoice;
     $pp->delete;
     # Back to reviewing the invoice
-    $mm->{req}->env->{"plack.session"}->set("paypal_frob", "");
+    $mm->session->set("paypal_frob", "");
     $mm->message("You cancelled the invoice payment");
     $mm->respond("plugins/invoice/view", invoice => $invoice);
 }
@@ -59,8 +59,8 @@ sub ipn {
 
 sub return {
     my ($self, $mm) = @_;
-    my $frob = $mm->{req}->env->{"plack.session"}->get("paypal_frob");
-    $mm->{req}->env->{"plack.session"}->set("paypal_frob", "");
+    my $frob = $mm->session->get("paypal_frob");
+    $mm->session->set("paypal_frob", "");
     my ($pp) = Kirin::DB::Paypal->search(magic_frob => $frob);
     my $invoice = $pp->invoice;
     if ($pp->status eq "Completed" and $pp->invoice->paid) {
@@ -99,7 +99,7 @@ sub _pay_invoice {
     );
     my $pp = Kirin::DB::Paypal->find_or_create({ invoice => $invoice });   
     $pp->magic_frob($paypal->id);
-    $mm->{req}->env->{"plack.session"}->set("paypal_frob", $paypal->id);
+    $mm->session->set("paypal_frob", $paypal->id);
     $pp->update();
     if (TESTING) { $button =~ s{www.paypal.com}{www.sandbox.paypal.com}g; }
     return $button;

@@ -420,15 +420,19 @@ sub cancel {
     my $bb = $self->_get_service($mm, $id);
     if ( ! $bb ) { $self->list($mm); return; }
 
-    if (!$mm->param('date')) {
+    if (!$mm->param('date') || ! $self->_valid_date($mm->param('date'))) {
         $mm->message('Please choose a date for cancellation');
-        return $mm->respond('plugins/broadband/cancel', 
+        return $mm->respond('plugins/broadband/cancel', cancel => {
+            service => $id,
             dates => $self->_dates
         )
     }
 
     if ( ! $mm->param('confirm') ) {
-    return $mm->respond('plugins/broadband/confirm-cancel');
+    return $mm->respond('plugins/broadband/confirm-cancel', cancel => { 
+        date => $mm->param('date'),
+        service => $id
+        ); }
     }
     
     my $out = eval {
@@ -438,7 +442,7 @@ sub cancel {
         ); 
     };
     if ($@) { 
-        $mm->message("An error occurred and your request could not be completed: $@");
+        $mm->message("An error occurred and your request could not be completed: $@"); # XXX not a good idea to send raw error
         return $self->view($mm, $id);
     }
     $bb->status('live-ceasing');

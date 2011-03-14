@@ -467,6 +467,11 @@ sub interleaving {
         $self->view($mm, $id);
     }
 
+    if ( $mm->params('interleaving') !~ /^(Yes|No|Auto)$/ ) {
+        $mm->message('You can only select from the available options');
+        $self->view($mm, $id);
+    }
+
     my $status = undef;
     eval { $status = $bb->provider_handle->interleaving(
         'service-id' => $bb->token, 

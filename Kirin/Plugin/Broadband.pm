@@ -313,8 +313,13 @@ sub process {
         @order{keys %billing} = values %billing;
     }
     eval { ($orderid, $serviceid) = $handle->order( %order ); };
-    if ( $@ ) { 
-        # XXX handle the error
+    if ( $@ ) {
+        Kirin::Utils->email_boss(
+            severity    => "error",
+            customer    => $order->customer,
+            context     => "Trying to please broadband order",
+            message     => "Cannot place broadband order $id ".$service->name.' on '.$op->{clid} . ' Error: '. $@
+            );
         return;
     }
     

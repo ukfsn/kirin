@@ -807,6 +807,10 @@ sub _service_details {
     my %details = eval {
         $self->provider_handle->service_view('service-id' => $self->token);
     };
+    if ( $@ ) {
+        warn $@; # XXX maybe should do something more than just warn
+        return;
+    }
     return %details;
 }
 

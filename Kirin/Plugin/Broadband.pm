@@ -425,14 +425,14 @@ sub cancel {
         return $mm->respond('plugins/broadband/cancel', cancel => {
             service => $id,
             dates => $self->_dates
-        )
+        } ); 
     }
 
     if ( ! $mm->param('confirm') ) {
     return $mm->respond('plugins/broadband/confirm-cancel', cancel => { 
         date => $mm->param('date'),
         service => $id
-        ); }
+        } );
     }
     
     my $out = eval {

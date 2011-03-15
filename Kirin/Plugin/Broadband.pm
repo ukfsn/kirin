@@ -722,7 +722,7 @@ sub _dates {
         $start += ONE_DAY;
     }
 
-    if ( $first_date ) {
+    if ( $first_date && $first_date =~ ISO_DATE ) {
         $start = Time::Piece->strptime($first_date, "%F");
     }
     my $end = $start + ONE_MONTH;
@@ -783,11 +783,16 @@ sub get_bandwidth_for {
     if ($bw and !$replace) {
         return ($bw->input, $bw->output);
     }
-    my %summary = $self->provider_handle->usage_summary(
+    my %summary =  ();
+    eval { %summary = $self->provider_handle->usage_summary(
         "service-id" => $self->token,
         year => $year,
         month => $mon
-    );
+    ); };
+    if ( $@ ) {
+        warn $@; # XXX maybe do something 
+        return;
+    }
     if ($bw) { 
         $bw->input($summary{"total-input-octets"});
         $bw->output($summary{"total-output-octets"});

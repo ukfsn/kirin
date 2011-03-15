@@ -5,7 +5,7 @@ use Regexp::Common qw/dns/;
 
 sub default_action { "list" }
 
-sub user_name { "Domains"               } 
+sub user_name { "Domains" } 
 
 sub list {
     my ($self, $mm) = @_;
@@ -31,7 +31,8 @@ sub _validate {
         return;
     } 
     my $dn = $mm->param("domainname") or return;
-    if (!$dn =~ /$RE{'dns'}{'domain'}{-minlables => 2}/) {
+
+    if ( $dn !~ /^$RE{'dns'}{'domain'}{-minlables => 2}$/ ) {
         $mm->message("Domain name malformed"); return;
     }
 

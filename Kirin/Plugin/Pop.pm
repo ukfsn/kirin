@@ -3,7 +3,6 @@ use strict;
 use base 'Kirin::Plugin';
 sub exposed_to     { 0 }
 sub user_name      { "POP Mailboxes" }
-sub name           { "pop" }
 sub default_action { "list" }
 my $ourprimary = Kirin->args->{mx_server}
     or die "You need to set mx_server in the Kirin configuration";

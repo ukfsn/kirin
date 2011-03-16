@@ -32,6 +32,7 @@ sub _account_for_invoice {
             InvoiceNumber => $invoice->id,
             CustomerID => $c->CustomerID
         });
+        # XXX need to check that all invoicelineitems are in the invoice
         for ($invoice->invoicelineitems) {
             $i->add_line({ 
                 Quantity => 1, 

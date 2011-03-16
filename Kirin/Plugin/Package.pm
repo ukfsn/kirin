@@ -11,12 +11,12 @@ sub list {
     my ($self, $mm) = @_;
     if (my $buy = $mm->{req}->params()->{buyproduct}) {
         my $package =  Kirin::DB::Package->retrieve($buy);
-        if ($package and $mm->{customer} and
+        if ($package and $package =~ /^\d+$/ and $mm->{customer} and
             $mm->{customer}->buy_package($package)) {
             $mm->message("Added ".$package->name." to your account");
         }
     } elsif (my $renew = $mm->{req}->params()->{renewsubscription}) {
-        my $sub =  Kirin::DB::Subscription->retrieve($cancel);
+        my $sub =  Kirin::DB::Subscription->retrieve($renew);
         if (!$sub->customer != $mm->{customer}) {
             $mm->message("That's not your subscription!");
         } else {

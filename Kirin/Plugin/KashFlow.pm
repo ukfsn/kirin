@@ -25,18 +25,24 @@ sub _account_for_invoice {
         });
         if (!$c) { die "Couldn't create customer in Kashflow" }
     }
-    my $i = $kf->create_invoice({
-        InvoiceNumber => $invoice->id,
-        CustomerID => $c->CustomerID
-    });
-    for ($invoice->invoicelineitems) {
-        $i->add_line({ 
-            Quantity => 1, 
-            Description => $_->description,
-            Rate => $_->cost
+    my $i;
+    $i = $kf->get_invoice($invoice->id);
+    if (!$i) {
+        my $i = $kf->create_invoice({
+            InvoiceNumber => $invoice->id,
+            CustomerID => $c->CustomerID
         });
+        for ($invoice->invoicelineitems) {
+            $i->add_line({ 
+                Quantity => 1, 
+                Description => $_->description,
+                Rate => $_->cost
+            });
+        }
     }
-    $i->pay({ PayAmount => $invoice->total });
+    if ( $invoice->paid and ! $i->{Paid} ) {
+        $i->pay({ PayAmount => $invoice->total });
+    }
 }
    
 __END__

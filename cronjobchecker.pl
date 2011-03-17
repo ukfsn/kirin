@@ -8,7 +8,7 @@ my %needs = (
     mail_redirect => [ qw/ update /],
     pop => [ qw/ delete update create /],
     secondary_dns => [ qw/ setup /],
-    ssl_server => [ qw/ configure_server deconfigure_server /],
+    sslserver => [ qw/ configure_server deconfigure_server /],
 
 
 );

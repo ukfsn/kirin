@@ -25,12 +25,14 @@ sub list {
        );
         $self->_add_todo($mm, update => $domain->id);
     } elsif ($mm->param("deletepolicy")) {
-        # Check email is part of this domain
-        my $policy = Kirin::DB::MailRedirect->retrieve($mm->param("rid"));
-        if ($policy and $policy->domain == $domain) {
-            $policy->delete;
-            $mm->message("Rule deleted");
-            $self->_add_todo($mm, update => $domain->id);
+        if ( $mm->param("rid") =~ /^\d+$/ ) {
+            # Check email is part of this domain
+            my $policy = Kirin::DB::MailRedirect->retrieve($mm->param("rid"));
+            if ($policy and $policy->domain == $domain) {
+                $policy->delete;
+                $mm->message("Rule deleted");
+                $self->_add_todo($mm, update => $domain->id);
+            }
         }
     }
     $mm->respond("plugins/mail_redirect/list", redirections => [ $domain->redirections ], 

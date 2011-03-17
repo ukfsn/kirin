@@ -55,7 +55,7 @@ sub edit {
             });
             $mm->message("Package created") if $package;
         }
-    } elsif (my $id = $mm->param("editpackage")) {
+    } elsif (my $id = $mm->param("editpackage") && $mm->param("editpackage") =~ /^\d+$/ ) {
         my $package = Kirin::DB::Package->retrieve($id);
         if ($package) {
             for (qw/description cost category duration/) {
@@ -64,7 +64,7 @@ sub edit {
             $package->update;
             $mm->message("Package updated");
         }
-    } elsif (my $id = $mm->param("addtopackage")) {
+    } elsif (my $id = $mm->param("addtopackage") && $mm->param("addtopackage") =~ /^\d+$/  ) {
         my $package = Kirin::DB::Package->retrieve($id);
         if ($package) {
             $package->add_to_services(
@@ -75,7 +75,7 @@ sub edit {
             }) });
             $mm->message("Service added");
         }
-    } elsif (my $id = $mm->param("dropfrompackage")) { 
+    } elsif (my $id = $mm->param("dropfrompackage") && $mm->param("dropfrompackage") =~ /^\d+$/) { 
         # Check for subscriptions first!
         my ($thing) = Kirin::DB::PackageService->search(
             "package" => $mm->param("package"),
@@ -85,7 +85,7 @@ sub edit {
         if (!Kirin::DB::PackageService->search(service => $id)) {
             Kirin::DB::Service->retrieve($id) 
         }
-    } elsif (my $id = $mm->param("delete")) {
+    } elsif (my $id = $mm->param("delete") && $mm->param("delete") =~ /^\d+$/ ) {
         my $thing = Kirin::DB::Package->retrieve($id);
         if ($thing) { $thing->delete; $mm->message("Package deleted") }
     }

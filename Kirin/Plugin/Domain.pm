@@ -69,6 +69,7 @@ package Kirin::DB::Domain;
 
 sub web_retrieve {
     my ($self, $mm, $id) = @_;
+    return unless $id =~ /^\d+$/;
     my $domain = $self->retrieve($id);
     if (!$domain) {
         $mm->message("You need to select a domain first");

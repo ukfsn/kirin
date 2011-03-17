@@ -9,23 +9,27 @@ sub buyproduct { goto &list } # It's the same but you have to be logged in
 
 sub list {
     my ($self, $mm) = @_;
-    if (my $buy = $mm->{req}->params()->{buyproduct}) {
+    my $params = $mm->{req}->params();
+    #if (my $buy = $mm->{req}->params()->{buyproduct} && ) {
+    if (my $buy = $params->{buyproduct} && $params{buyproduct} =~ /^\d+$/) {
         my $package =  Kirin::DB::Package->retrieve($buy);
-        if ($package and $package =~ /^\d+$/ and $mm->{customer} and
+        if ($package and $mm->{customer} and
             $mm->{customer}->buy_package($package)) {
             $mm->message("Added ".$package->name." to your account");
         }
-    } elsif (my $renew = $mm->{req}->params()->{renewsubscription}) {
+    } elsif (my $renew = $params->{renewsubscription} && 
+        $params->{renewsubscription} =~ /^\d+$/) {
         my $sub =  Kirin::DB::Subscription->retrieve($renew);
-        if (!$sub->customer != $mm->{customer}) {
+        if ($sub->customer != $mm->{customer}) {
             $mm->message("That's not your subscription!");
         } else {
             $mm->message("Renewed your subscription to ".$sub->package->name);
             $mm->{customer}->renew_subscription($sub);
         }
-    } elsif (my $cancel = $mm->{req}->params()->{cancelsubscription}) {
+    } elsif (my $cancel = $params->{cancelsubscription} &&
+        $params->{cancelsubscription} =~ /^\d+$/) {
         my $sub =  Kirin::DB::Subscription->retrieve($cancel);
-        if (!$sub->customer != $mm->{customer}) {
+        if ($sub->customer != $mm->{customer}) {
             $mm->message("That's not your subscription!");
         } else {
             $mm->message("Removed ".$sub->package->name." from your account");

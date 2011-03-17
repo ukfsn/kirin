@@ -29,7 +29,10 @@ sub list {
     } elsif (my $cancel = $params->{cancelsubscription} &&
         $params->{cancelsubscription} =~ /^\d+$/) {
         my $sub =  Kirin::DB::Subscription->retrieve($cancel);
-        if ($sub->customer != $mm->{customer}) {
+        if ( ! $sub ) {
+            $mm->message("That subscription is already cancelled");
+        }
+        elsif ($sub->customer != $mm->{customer}) {
             $mm->message("That's not your subscription!");
         } else {
             $mm->message("Removed ".$sub->package->name." from your account");

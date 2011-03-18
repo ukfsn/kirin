@@ -111,7 +111,7 @@ sub order {
             goto stage_1;
         }
 
-        my $crd = $mm->param($mm->param('service').'_crd');
+        my $crd = defined $mm->param('crd') ? $mm->param('crd'): $mm->param($mm->param('service').'_crd');
 
         if ( ! $self->_valid_date($crd) ) {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');

@@ -10,8 +10,7 @@ sub buyproduct { goto &list } # It's the same but you have to be logged in
 sub list {
     my ($self, $mm) = @_;
     my $params = $mm->{req}->params();
-    #if (my $buy = $mm->{req}->params()->{buyproduct} && ) {
-    if (my $buy = $params->{buyproduct} && $params{buyproduct} =~ /^\d+$/) {
+    if (my $buy = $params->{buyproduct} && $params->{buyproduct} =~ /^\d+$/) {
         my $package =  Kirin::DB::Package->retrieve($buy);
         if ($package and $mm->{customer} and
             $mm->{customer}->buy_package($package)) {

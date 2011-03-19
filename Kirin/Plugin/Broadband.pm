@@ -94,9 +94,10 @@ sub order {
             };
         }
 
+        $mm->session->set("clid", $clid);
+        $mm->session->set("mac", $mac) if $mac;
+        
         return $mm->respond('plugins/broadband/signup', result => {
-            cli => $clid,
-            mac => $mac,
             services => \%avail,
             qualification => $services{qualification},
             vatrate => Kirin::Plugin->_get_vat_rate()
@@ -130,7 +131,8 @@ sub order {
             status      => 'Building',
             parameters  => $json->encode( {
                 service     => $service->id,
-                clid        => $clid,
+                clid        => $mm->session->get("clid"),
+                mac         => $mm->session->get("mac"),
                 crd         => $crd,
                 options     => $options
             })

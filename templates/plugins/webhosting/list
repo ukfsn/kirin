@@ -37,7 +37,8 @@ Path: <input name="path">
 <h3> Host a new site </h3>
 
 <form method="post">
-<input name="hostname">.[%domain.domainname%]
+<b>Website:</b> <input name="hostname">.[%domain.domainname%] - 
+<b>Directory:</b> <input name="directory">
 <input type="hidden" name="addhosting" value="1">
 <input type="submit" name="s" value="Create">
 </form>

@@ -29,13 +29,17 @@ sub list {
         goto done;
     }
     if ($mm->param("addhosting")) {
-        # Can I add one? (Check quota)
-        # Is this in my domain?!
         # Hostname characters OK?
         my $hostname = join ".", $mm->param("hostname"), $domain->domainname;
         if ($hostname =~ /^$RE{dns}{data}{cname}$/) {
+            my $dir = $mm->param("directory");
+            if ( $dir =~ /\.\/\.\.\// || $dir =~ /^\.\./ || $dir !~ /[-\w\.]/g) {
+                $mm->message("The specified directory name $dir is not safe."); goto done;
+            }
+
             $hosting = Kirin::DB::Webhosting->create({
-                domain => $domain, hostname => $hostname });
+                domain => $domain, hostname => $hostname, 
+                defined $dir ? (directory => $dir) : (directory => $domain) });
             $self->_add_todo($mm, create => $hosting->id);
             $mm->message("Your site has been configured and will be available shortly");
         } else {
@@ -121,7 +125,8 @@ sub sql { q/
 CREATE TABLE IF NOT EXISTS webhosting (
     id integer primary key not null,
     domain integer,
-    hostname varchar(255)
+    hostname varchar(255),
+    directory varchar(255)
 );
 
 CREATE TABLE IF NOT EXISTS webhosting_feature (

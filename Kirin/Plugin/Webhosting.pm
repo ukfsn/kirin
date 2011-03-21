@@ -16,7 +16,7 @@ sub list {
 
     my $hosting;
     my %features = $self->_available_features($mm);
-    if ($mm->param("hid")) { 
+    if ($mm->param("hid") && $mm->param("hid") =~ /^\d+$/ ) { 
         $hosting = Kirin::DB::Webhosting->retrieve($mm->param("hid"));
         if (!$hosting or $hosting->domain->customer != $mm->{customer}) {
             $mm->message("That's not your hosting!"); goto done;

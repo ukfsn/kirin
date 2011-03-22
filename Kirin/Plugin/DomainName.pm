@@ -710,6 +710,17 @@ sub admin {
     $mm->respond("plugins/domain_name/admin", %args);
 }
 
+sub _setup_db {
+    my $self = shift;
+    $self->_ensure_table('domain_name');
+    $self->_ensure_table('tld_handler');
+    $self->_ensure_table('tld_fields');
+    $self->_ensure_table('tld_transfer_options');
+
+    Kirin::DB::TldFields->has_a(tld => "Kirin::DB::TldHandler");
+    Kirin::DB::TldHandler->has_many(fields => "Kirin::DB::TldFields");
+}
+
 package Kirin::DB::DomainName;
 
 sub sql{q/
@@ -731,6 +742,12 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     price number(5,2),
     min_duration integer,
     max_duration integer
+);
+
+CREATE TABLE IF NOT EXISTS tld_fields ( id integer primary key not null,
+    tld integer,
+    name varchar(40),
+    type varchar(40)
 );
 
 CREATE TABLE IF NOT EXISTS tld_transfer_options (id integer primary key not null,

@@ -88,6 +88,7 @@ sub register {
         $args{available} = 1;
     }
 
+    # XXX Get rid of this. Abstract it away by providing a way to specify tld attributes and classes
     if ( $tld_handler->registrar eq 'Nominet' ) {
         $args{ukdomain} = 1;
         $args{types} = [Kirin::DB::RegType->retrieve_all()];
@@ -712,13 +713,20 @@ sub admin {
 
 sub _setup_db {
     my $self = shift;
-    $self->_ensure_table('domain_name');
-    $self->_ensure_table('tld_handler');
-    $self->_ensure_table('tld_fields');
-    $self->_ensure_table('tld_transfer_options');
+    for my $table (qw/domain_name tld_handler domain_class 
+        domain_class_attr domain_registrar domain_reg_attr/) {
+        $self->_ensure_table($table);
+    }
+        
+    Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
+    Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
-    Kirin::DB::TldFields->has_a(tld => "Kirin::DB::TldHandler");
-    Kirin::DB::TldHandler->has_many(fields => "Kirin::DB::TldFields");
+    Kirin::DB::TldHandler->has_a(registrar => "Kirin::DB::DomainRegistrar");
+    Kirin::DB::TldHandler->has_many(classes => "Kirin::DB::DomainClass");
+    Kirin::DB::DomainClass->has_many(attributes => "Kirin::DB::DomainClassAttr");
+
+    Kirin::DB::DomainRegAttr->has_a(registrar => "Kirin::DB::DomainRegistrar");
+    Kirin::DB::DomainRegistrar->has_many(attributes => "Kirin::DB::DomainRegAttr");
 }
 
 package Kirin::DB::DomainName;
@@ -727,7 +735,7 @@ sub sql{q/
 CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     customer integer,
     domain varchar(255) NOT NULL, 
-    registrar varchar(40),
+    registrar integer,
     billing text,
     admin text,
     technical text,
@@ -744,25 +752,30 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     max_duration integer
 );
 
-CREATE TABLE IF NOT EXISTS tld_fields ( id integer primary key not null,
-    tld integer,
-    name varchar(40),
-    type varchar(40)
+CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
+    tld_handler integer,
+    name varchar(255),
+);    
+
+CREATE TABLE IF NOT EXISTS domain_class_attr id integer primary key not null,
+    domain_class integer,
+    name varchar(255),
+    value varchar(255)
+);    
+
+CREATE TABLE IF NOT EXISTS domain_registrar (
+    id integer primary key not null,
+    name varchar(50),
+    active integer
 );
 
-CREATE TABLE IF NOT EXISTS tld_transfer_options (id integer primary key not null,
-    tld integer,
-    auth_code integer,
-    external_action integer,
-);
-/}
-
-package Kirin::DB::RegType;
-
-sub sql{q/
-CREATE TABLE IF NOT EXISTS reg_type ( id integer primary key not null,
-    type varchar(20),
-    description varchar(80)
+CREATE TABLE IF NOT EXISTS domain_reg_attr (
+    id integer primary key not null,
+    registrar integer,
+    name varchar(255),
+    value varchar(255)
+    required integer
 );    
 /}
+
 1;

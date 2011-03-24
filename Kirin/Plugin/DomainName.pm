@@ -711,6 +711,85 @@ sub admin {
     $mm->respond("plugins/domain_name/admin", %args);
 }
 
+sub admin_class_types {
+    my ($self, $mm) = @_;
+
+    if ( $mm->param('create') ) {
+        if ( ! $mm->param('name') || ! $mm->param('value') ) {
+            $mm->message("You must provide the name and value for the Class Type");
+            goto done;
+        }
+        my $type = Kirin::DB::DomainClassType->create({
+            map {$_ => $mm->param($_) } qw/name value/ });
+        $mm->message("Class Type created") if $type;
+    }
+    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $type = Kirin::DB::DomainClassType->retrieve($id);
+        if ( $type ) {
+            for (qw/name value/) {
+                next if ! $mm->param($_);
+                $type->$_($mm->param($_));
+            }
+            $type->update();
+        }
+    }
+    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $type = Kirin::DB::DomainClassType->retrieve($id);
+        if ( $type ) {
+            $type->delete;
+            $mm->message("Class type deleted");
+        }
+    }
+
+    my @types = Kirin::DB::DomainClassType->retrieve_all();
+    $mm->respond("plugins/domain_name/admin_class_type", types => \@types);
+}
+
+sub admin_domain_class {
+    my ($self, $mm) = @_;
+
+    if ( $mm->param('create') ) {
+        if ( ! $mm->param('name') || ! $mm->param('value') ) {
+            $mm->message("You must provide the name and value for the Class");
+            goto done;
+        }
+        my $type = Kirin::DB::DomainClass->create({
+            map {$_ => $mm->param($_) } qw/name value/ });
+        $mm->message("Domain Class created") if $type;
+    }
+    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $type = Kirin::DB::DomainClass->retrieve($id);
+        if ( $type ) {
+            for (qw/name value/) {
+                next if ! $mm->param($_);
+                $type->$_($mm->param($_));
+            }
+            $type->update();
+        }
+    }
+    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $type = Kirin::DB::DomainClass->retrieve($id);
+        if ( $type ) {
+            $type->delete;
+            $mm->message("Class deleted");
+        }
+    }
+
+    my @class = Kirin::DB::DomainClass->retrieve_all();
+    $mm->respond("plugins/domain_name/admin_class", classes => \@class);
+}
+
+sub admin_tld_handler {
+    my ($self, $mm) = @_;
+
+}
+
+sub admin_registrar {
+    my ($self, $mm) = @_;
+
+}
+
+
 sub _setup_db {
     my $self = shift;
     for my $table (qw/domain_name tld_handler domain_class 
@@ -723,6 +802,7 @@ sub _setup_db {
 
     Kirin::DB::TldHandler->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::DomainClass->has_a(tld_handler => "Kirin::DB::TldHandler");
+    Kirin::DB::DomainClass->has_a(class_type => "Kirin::DB::DomainClassType");
     Kirin::DB::DomainClassAttr->has_a(domain_class => "Kirin::DB::DomainClass");
 
     Kirin::DB::TldHandler->has_many(classes => "Kirin::DB::DomainClass");
@@ -758,11 +838,18 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
     tld_handler integer,
+    class_type varchar(255),
     name varchar(255)
 );    
 
 CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     domain_class integer,
+    name varchar(255),
+    value varchar(255)
+);
+
+CREATE TABLE IF NOT EXISTS domain_class_type (
+    id integer primary key not null,
     name varchar(255),
     value varchar(255)
 );    

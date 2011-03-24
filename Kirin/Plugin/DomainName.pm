@@ -722,6 +722,9 @@ sub _setup_db {
     Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
     Kirin::DB::TldHandler->has_a(registrar => "Kirin::DB::DomainRegistrar");
+    Kirin::DB::DomainClass->has_a(tld_handler => "Kirin::DB::TldHandler");
+    Kirin::DB::DomainClassAttr->has_a(domain_class => "Kirin::DB::DomainClass");
+
     Kirin::DB::TldHandler->has_many(classes => "Kirin::DB::DomainClass");
     Kirin::DB::DomainClass->has_many(attributes => "Kirin::DB::DomainClassAttr");
 
@@ -736,6 +739,7 @@ CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     customer integer,
     domain varchar(255) NOT NULL, 
     registrar integer,
+    registrar_id varchar(255),
     billing text,
     admin text,
     technical text,
@@ -746,7 +750,7 @@ CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
 
 CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     tld varchar(20),
-    registrar varchar(40),
+    registrar integer,
     price number(5,2),
     min_duration integer,
     max_duration integer
@@ -754,10 +758,10 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
     tld_handler integer,
-    name varchar(255),
+    name varchar(255)
 );    
 
-CREATE TABLE IF NOT EXISTS domain_class_attr id integer primary key not null,
+CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     domain_class integer,
     name varchar(255),
     value varchar(255)
@@ -773,7 +777,7 @@ CREATE TABLE IF NOT EXISTS domain_reg_attr (
     id integer primary key not null,
     registrar integer,
     name varchar(255),
-    value varchar(255)
+    value varchar(255),
     required integer
 );    
 /}

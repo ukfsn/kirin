@@ -709,42 +709,9 @@ sub admin {
     $mm->respond("plugins/domain_name/admin", tlds => \@tlds);
 }
 
-sub admin_class_types {
-    my ($self, $mm) = @_;
-
-    if ( $mm->param('create') ) {
-        if ( ! $mm->param('name') || ! $mm->param('value') ) {
-            $mm->message("You must provide the name and value for the Class Type");
-            goto done;
-        }
-        my $type = Kirin::DB::DomainClassType->create({
-            map {$_ => $mm->param($_) } qw/name value/ });
-        $mm->message("Class Type created") if $type;
-    }
-    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
-        my $type = Kirin::DB::DomainClassType->retrieve($id);
-        if ( $type ) {
-            for (qw/name value/) {
-                next if ! $mm->param($_);
-                $type->$_($mm->param($_));
-            }
-            $type->update();
-        }
-    }
-    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
-        my $type = Kirin::DB::DomainClassType->retrieve($id);
-        if ( $type ) {
-            $type->delete;
-            $mm->message("Class type deleted");
-        }
-    }
-
-    my @types = Kirin::DB::DomainClassType->retrieve_all();
-    $mm->respond("plugins/domain_name/admin_class_type", types => \@types);
-}
-
 sub admin_domain_class {
     my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
     if ( $mm->param('create') ) {
         if ( ! $mm->param('name') ) {
@@ -763,7 +730,7 @@ sub admin_domain_class {
             $class->update();
         }
     }
-    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
         my $class = Kirin::DB::DomainClass->retrieve($id);
         if ( $class ) {
             $class->delete;
@@ -777,6 +744,7 @@ sub admin_domain_class {
 
 sub admin_domain_class_attr {
     my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
     if ( $mm->param('create') ) {
         for (qw/domain_class name label condition/) {
@@ -806,28 +774,26 @@ sub admin_domain_class_attr {
             $mm->message("Attribute Updated");
         }
     }
-    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
         my $attr = Kirin::DB::DomainClassAttr->retrieve($id);
         if ( $attr ) {
             $attr->delete;
             $mm->message("Attribute deleted");
         }
     }
-    my @attrs = Kirin::DB::DomainClassAttr->retrieve_all();
     my @classes = Kirin::DB::DomainClass->retrieve_all();
-    $mm->respond("plugins/domain_name/admin_class_attr", {
-        attrs => \@attrs,
-        classes => \@classes
-        });
+    $mm->respond("plugins/domain_name/admin_class_attr", classes => \@classes);
 }
 
 sub admin_tld_handler {
     my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
 }
 
 sub admin_registrar {
     my ($self, $mm) = @_;
+    if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
 }
 

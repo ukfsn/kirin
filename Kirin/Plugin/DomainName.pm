@@ -747,28 +747,26 @@ sub admin_domain_class {
     my ($self, $mm) = @_;
 
     if ( $mm->param('create') ) {
-        if ( ! $mm->param('name') || ! $mm->param('value') ) {
-            $mm->message("You must provide the name and value for the Class");
+        if ( ! $mm->param('name') ) {
+            $mm->message("You must provide the name for the Class");
             goto done;
         }
         my $type = Kirin::DB::DomainClass->create({
-            map {$_ => $mm->param($_) } qw/name value condition/ });
+            name => $mm->param('name')
+        });
         $mm->message("Domain Class created") if $type;
     }
     elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
-        my $type = Kirin::DB::DomainClass->retrieve($id);
-        if ( $type ) {
-            for (qw/name value condition/) {
-                next if ! $mm->param($_);
-                $type->$_($mm->param($_));
-            }
-            $type->update();
+        my $class = Kirin::DB::DomainClass->retrieve($id);
+        if ( $class ) {
+            $class->name($mm->param('name'));
+            $class->update();
         }
     }
     elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
-        my $type = Kirin::DB::DomainClass->retrieve($id);
-        if ( $type ) {
-            $type->delete;
+        my $class = Kirin::DB::DomainClass->retrieve($id);
+        if ( $class ) {
+            $class->delete;
             $mm->message("Class deleted");
         }
     }
@@ -781,7 +779,7 @@ sub admin_domain_class_attr {
     my ($self, $mm) = @_;
 
     if ( $mm->param('create') ) {
-        for (qw/domain_class name condition/) {
+        for (qw/domain_class name label condition/) {
             $mm->message("You must supply $_") if ! $mm->param($_);
             goto done;
         }
@@ -790,7 +788,7 @@ sub admin_domain_class_attr {
             goto done;
         }
         my $attr = Kirin::DB::DomainClassAttr->create({
-            map {$_ => $mm->param($_) } qw/domain_class name condition/ });
+            map {$_ => $mm->param($_) } qw/domain_class name label condition/ });
         $mm->message("Attribute created");
     }
     elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
@@ -800,7 +798,7 @@ sub admin_domain_class_attr {
                 $mm->message("Please select from the list of Domain Classes");
                 goto done;
             }
-            for (qw/domain_class name condition/) {
+            for (qw/domain_class name label condition/) {
                 next if ! $mm->param($_);
                 $attr->$_($mm->param($_));
             }
@@ -816,7 +814,11 @@ sub admin_domain_class_attr {
         }
     }
     my @attrs = Kirin::DB::DomainClassAttr->retrieve_all();
-    $mm->respond("plugins/domain_name/admin_class_attr", attrs => \@attrs);
+    my @classes = Kirin::DB::DomainClass->retrieve_all();
+    $mm->respond("plugins/domain_name/admin_class_attr", {
+        attrs => \@attrs,
+        classes => \@classes
+        });
 }
 
 sub admin_tld_handler {
@@ -841,11 +843,12 @@ sub _setup_db {
     Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
     Kirin::DB::TldHandler->has_a(registrar => "Kirin::DB::DomainRegistrar");
-    Kirin::DB::DomainClass->has_a(tld_handler => "Kirin::DB::TldHandler");
-    Kirin::DB::DomainClass->has_a(class_type => "Kirin::DB::DomainClassType");
+    Kirin::DB::TldHandler->has_a(reg_class => "Kirin::DB::DomainClass");
+    Kirin::DB::TldHandler->has_a(admin_class => "Kirin::DB::DomainClass");
+    Kirin::DB::TldHandler->has_a(tech_class => "Kirin::DB::DomainClass");
+
     Kirin::DB::DomainClassAttr->has_a(domain_class => "Kirin::DB::DomainClass");
 
-    Kirin::DB::TldHandler->has_many(classes => "Kirin::DB::DomainClass");
     Kirin::DB::DomainClass->has_many(attributes => "Kirin::DB::DomainClassAttr");
 
     Kirin::DB::DomainRegAttr->has_a(registrar => "Kirin::DB::DomainRegistrar");
@@ -879,23 +882,15 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
 );
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
-    tld_handler integer,
-    class_type varchar(255),
     name varchar(255)
 );
 
 CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     domain_class integer,
     name varchar(255),
-    value varchar(255),
+    label varchar(255),
     condition text
 );
-
-CREATE TABLE IF NOT EXISTS domain_class_type (
-    id integer primary key not null,
-    name varchar(255),
-    value varchar(255)
-);    
 
 CREATE TABLE IF NOT EXISTS domain_registrar (
     id integer primary key not null,

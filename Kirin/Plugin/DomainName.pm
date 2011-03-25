@@ -743,30 +743,29 @@ sub admin_domain_class {
 }
 
 sub admin_domain_class_attr {
-    my ($self, $mm) = @_;
+    my ($self, $mm, $cid) = @_;
     if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
-
+    $self->admin_domain_class if $cid !~ /^\d+$/;
+    my $class = Kirin::DB::DomainClass->retrieve($cid); 
+    if ( ! $class ) {
+        return $self->admin_domain_class();
+    }
+    
     if ( $mm->param('create') ) {
-        for (qw/domain_class name label condition/) {
+        for (qw/name label condition/) {
             $mm->message("You must supply $_") if ! $mm->param($_);
             goto done;
         }
-        if ( !Kirin::DB::DomainClassAttr->retrieve($mm->param("domain_class")) ) {
-            $mm->message("Please select from the list of Domain Classes");
-            goto done;
-        }
         my $attr = Kirin::DB::DomainClassAttr->create({
-            map {$_ => $mm->param($_) } qw/domain_class name label condition/ });
+            (map {$_ => $mm->param($_) } qw/name label condition/),
+            domain_class => $class->id
+        });
         $mm->message("Attribute created");
     }
     elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
         my $attr = Kirin::DB::DomainClassAttr->retrieve($id);
         if ( $attr ) {
-            if ( !Kirin::DB::DomainClassAttr->retrieve($mm->param("domain_class")) ) {
-                $mm->message("Please select from the list of Domain Classes");
-                goto done;
-            }
-            for (qw/domain_class name label condition/) {
+            for (qw/name label condition/) {
                 next if ! $mm->param($_);
                 $attr->$_($mm->param($_));
             }
@@ -781,8 +780,7 @@ sub admin_domain_class_attr {
             $mm->message("Attribute deleted");
         }
     }
-    my @classes = Kirin::DB::DomainClass->retrieve_all();
-    $mm->respond("plugins/domain_name/admin_class_attr", classes => \@classes);
+    $mm->respond("plugins/domain_name/admin_class_attr", class => $class);
 }
 
 sub admin_tld_handler {

@@ -754,13 +754,13 @@ sub admin_domain_class {
             goto done;
         }
         my $type = Kirin::DB::DomainClass->create({
-            map {$_ => $mm->param($_) } qw/name value/ });
+            map {$_ => $mm->param($_) } qw/name value condition/ });
         $mm->message("Domain Class created") if $type;
     }
     elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
         my $type = Kirin::DB::DomainClass->retrieve($id);
         if ( $type ) {
-            for (qw/name value/) {
+            for (qw/name value condition/) {
                 next if ! $mm->param($_);
                 $type->$_($mm->param($_));
             }
@@ -824,13 +824,15 @@ CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     admin text,
     technical text,
     nameserverlist varchar(255),
-    tld_handler integer,
     expires datetime
 );
 
 CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     tld varchar(20),
     registrar integer,
+    reg_class integer,
+    admin_class integer,
+    tech_class integer,
     price number(5,2),
     min_duration integer,
     max_duration integer
@@ -840,12 +842,13 @@ CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
     tld_handler integer,
     class_type varchar(255),
     name varchar(255)
-);    
+);
 
 CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     domain_class integer,
     name varchar(255),
-    value varchar(255)
+    value varchar(255),
+    condition text
 );
 
 CREATE TABLE IF NOT EXISTS domain_class_type (

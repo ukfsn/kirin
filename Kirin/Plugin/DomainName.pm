@@ -638,23 +638,41 @@ sub admin {
     if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
     if ( $mm->param("tld")) {
         if ($mm->param("create")) {
-            if (!$mm->param("registrar") || ! Kirin->args->{registrar_credentials}->{$mm->param("registrar")} ) {
+            if (!$mm->param("registrar") || 
+            ! Kirin::DB::DomainRegistrar->retrieve($mm->param("registrar")) ) {
                 $mm->message("Select a Registrar from the supplied list");
-            } elsif (!$mm->param("tld")) {
+                goto done;
+            }
+
+            if (!$mm->param("tld")) {
                 $mm->message("You must specify a valid domain TLD");
+                goto done;
             }
-            elsif ( !$mm->param("price") ) {
+
+            if ( ! Kirin::DB::DomainClass->retrieve($mm->param('registrant_class')) ||
+                ! Kirin::DB::DomainClass->retrieve($mm->param('admin_class')) ||
+                ! Kirin::DB::DomainClass->retrieve($mm->param('tech_class')) ) {
+                $mm->message("You must select from the available contact classes");
+                goto done;
+            }
+
+
+            if ( !$mm->param("price") ) {
                 $mm->message("You must specify the annual price for the domain");
+                goto done;
             }
-            elsif ( ! $mm->param("min_duration") || ! $mm->param("max_duration") ) {
+            
+            if ( ! $mm->param("min_duration") || ! $mm->param("max_duration") ) {
                 $mm->message("You must specify the minimum and maximum registration period in years.");
-            } else {
-                my $handler = Kirin::DB::TldHandler->create({
-                    map { $_ => $mm->param($_) }
-                        qw/tld registrar price min_duration max_duration/
-                });
-                $mm->message("Handler created") if $handler;
+                goto done;
             }
+            
+            my $handler = Kirin::DB::TldHandler->create({
+                map { $_ => $mm->param($_) }
+                    qw/tld registrar registrant_class admin_class 
+                       tech_class price min_duration max_duration/
+            });
+            $mm->message("Handler created") if $handler;
         } elsif (my $id = $mm->param("edittld")) {
             my $handler = Kirin::DB::TldHandler->retrieve($id);
             if ($handler) {
@@ -669,46 +687,10 @@ sub admin {
              if ($thing) { $thing->delete; $mm->message("Handler deleted") }
         }
     }
-    elsif ( $mm->param("reg_type")) {
-        if ( $mm->param("create")) {
-            if ( ! $mm->param("type") ) {
-                $mm->message("You must specify the registrant type code");
-            }
-            if ( ! $mm->param("description") ) {
-                $mm->message("You must provide a description for the registrant type");
-            }
-            my $type = Kirin::DB::RegType->create({
-                map { $_ => $mm->param($_) }
-                    qw/type description/
-            });
-            $mm->message("Registrant Type created") if $type;
-        }
-        elsif ( my $id = $mm->param("edit") ) {
-            my $type = Kirin::DB::RegType->retrieve($id);
-            if ( $type ) {
-                for (qw/type description/) {
-                    next if ! $mm->param($_);
-                    $type->$_($mm->param($_));
-                }
-                $type->update();
-            }
-        }
-        elsif (my $id = $mm->param("delete")) {
-            my $type = Kirin::DB::RegType->retrieve($id);
-            if ($type) {
-                $type->delete;
-                $mm->message("Registrant Type deleted");
-            }
-        }
-    }
 
+    done:
     my @tlds = Kirin::DB::TldHandler->retrieve_all();
-    my @types = Kirin::DB::RegType->retrieve_all();
-    my %args = ( tlds => \@tlds, 
-        registrars => [ keys %{Kirin->args->{registrar_credentials}} ],
-        types => \@types,
-    );
-    $mm->respond("plugins/domain_name/admin", %args);
+    $mm->respond("plugins/domain_name/admin", tlds => \@tlds);
 }
 
 sub admin_class_types {

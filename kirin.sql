@@ -79,6 +79,12 @@ CREATE TABLE jobqueue (
     parameters text
 );
 
+CREATE TABLE data_types (
+    id integer primary key not null,
+    name varchar(255),
+    rule varchar(255)
+);    
+
 CREATE TABLE vatrates (
     id integer primary key not null,
     rate decimal(5,2),

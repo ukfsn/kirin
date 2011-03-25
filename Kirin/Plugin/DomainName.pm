@@ -531,7 +531,6 @@ sub change_contacts {
     }
 
     %rv = $self->_get_register_args($mm, 1, $domain->tld_handler, %args);
-    use Data::Dumper; warn Dumper(\%rv);
     return $rv{response} if exists $rv{response};
 
     if ($mm->param("change") and $handle->change_contact(domain => $domain->domain, %rv)) {
@@ -718,7 +717,7 @@ sub admin_domain_class {
             $mm->message("You must provide the name for the Class");
             goto done;
         }
-        my $type = Kirin::DB::DomainClass->create({
+        my $type = Kirin::DB::DomainClass->insert({
             name => $mm->param('name')
         });
         $mm->message("Domain Class created") if $type;
@@ -745,7 +744,7 @@ sub admin_domain_class {
 sub admin_domain_class_attr {
     my ($self, $mm, $cid) = @_;
     if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
-    $self->admin_domain_class if $cid !~ /^\d+$/;
+    $self->admin_domain_class() if $cid !~ /^\d+$/;
     my $class = Kirin::DB::DomainClass->retrieve($cid); 
     if ( ! $class ) {
         return $self->admin_domain_class();
@@ -753,10 +752,12 @@ sub admin_domain_class_attr {
     
     if ( $mm->param('create') ) {
         for (qw/name label condition/) {
-            $mm->message("You must supply $_") if ! $mm->param($_);
-            goto done;
+            if ( ! $mm->param($_)) {
+                $mm->message("You must supply $_");
+                goto done;
+            }
         }
-        my $attr = Kirin::DB::DomainClassAttr->create({
+        my $attr = Kirin::DB::DomainClassAttr->insert({
             (map {$_ => $mm->param($_) } qw/name label condition/),
             domain_class => $class->id
         });
@@ -780,21 +781,89 @@ sub admin_domain_class_attr {
             $mm->message("Attribute deleted");
         }
     }
+    done:
     $mm->respond("plugins/domain_name/admin_class_attr", class => $class);
-}
-
-sub admin_tld_handler {
-    my ($self, $mm) = @_;
-    if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
-
 }
 
 sub admin_registrar {
     my ($self, $mm) = @_;
     if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
+    if ( $mm->param('create') ) {
+        $mm->message("You must supply a name") if ! $mm->param('name');
+        my $r = Kirin::DB::DomainRegistrar->insert({
+            name => $mm->param('name'), active => $mm->param('active')
+        });
+        $mm->message("Registrar created") if $r;
+    }
+    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $r = Kirin::DB::DomainRegistrar->retrieve($id);
+        if ( $r ) {
+            for (qw/name active/) {
+                next if ! $mm->param($_);
+                $r->$_($mm->param($_));
+            }
+            $r->update();
+            $mm->message("Registrar Updated");
+        }
+    }
+    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $r = Kirin::DB::DomainRegistrar->retrieve($id);
+        if ( $r ) {
+            $r->delete;
+            $mm->message("Registrar deleted");
+        }
+    }
+
+    my @reg = Kirin::DB::DomainRegistrar->retrieve_all();
+    $mm->respond("plugins/domain_name/admin_registrar", registrars => \@reg);
 }
 
+sub admin_registrar_attr {
+    my ($self, $mm, $rid) = @_;
+    if ( ! $rid || $rid !~ /^\d+$/ ) {
+        return $self->admin_registrar();
+    }
+    my $registrar = Kirin::DB::DomainRegistrar->retrieve($rid);
+    if ( ! $registrar ) {
+        return $self->admin_registrar();
+    }
+
+    if ( $mm->param('create') ) {
+        for (qw/name value/) {
+            if ( ! $mm->param($_) ) {
+                $mm->message("You must supply $_");
+                goto done;
+            }
+        }
+        my $attr = Kirin::DB::DomainRegAttr->insert({
+            (map { $_ => $mm->param($_) } qw/name value/),
+            registrar => $registrar->id
+        });
+        warn "Cannot create" if ! $attr;
+        $mm->message("Attribute created");
+    }
+    elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $a = Kirin::DB::DomainRegAttr->retrieve($id);
+        if ( $a ) {
+            for (qw/name value/) {
+                next if ! $mm->param($_);
+                $a->$_($mm->param($_));
+            }
+            $a->update();
+            $mm->message("Registrar Updated");
+        }
+    }
+    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $a = Kirin::DB::DomainRegAttr->retrieve($id);
+        if ($a) {
+            $a->delete;
+            $mm->message("Registrar Updated");
+        }
+    }
+    done:
+    $mm->respond("plugins/domain_name/admin_registrar_attr", registrar => $registrar);
+}
 
 sub _setup_db {
     my $self = shift;
@@ -866,8 +935,7 @@ CREATE TABLE IF NOT EXISTS domain_reg_attr (
     id integer primary key not null,
     registrar integer,
     name varchar(255),
-    value varchar(255),
-    required integer
+    value varchar(255)
 );    
 /}
 

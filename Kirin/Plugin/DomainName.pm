@@ -777,6 +777,48 @@ sub admin_domain_class {
     $mm->respond("plugins/domain_name/admin_class", classes => \@class);
 }
 
+sub admin_domain_class_attr {
+    my ($self, $mm) = @_;
+
+    if ( $mm->param('create') ) {
+        for (qw/domain_class name condition/) {
+            $mm->message("You must supply $_") if ! $mm->param($_);
+            goto done;
+        }
+        if ( !Kirin::DB::DomainClass->retrieve($mm->param("domain_class")) ) {
+            $mm->message("Please select from the list of Domain Classes");
+            goto done;
+        }
+        my $attr = Kirin::DB::DomainClassAttr->create({
+            map {$_ => $mm->param($_) } qw/domain_class name condition/ });
+        $mm->message("Attribute created");
+    }
+    elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $attr = Kirin::DB::DomainClassAttr-retrieve($id);
+        if ( $attr ) {
+            if ( !Kirin::DB::DomainClass->retrieve($mm->param("domain_class")) ) {
+                $mm->message("Please select from the list of Domain Classes");
+                goto done;
+            }
+            for (qw/domain_class name condition/) {
+                next if ! $mm->param($_);
+                $attr->$_($mm->param($_));
+            }
+            $attr->update();
+            $mm->message("Attribute Updated");
+        }
+    }
+    elsif ( my $id = $mm-param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $attr = Kirin::DB::DomainClassAttr-retrieve($id);
+        if ( $attr ) {
+            $attr->delete;
+            $mm->message("Attribute deleted");
+        }
+    }
+    my @attrs = Kirin::DB::DomainClassAttr-retrieve_all();
+    $mm->respond("plugins/domain_name/admin_class_attr", attrs => \@attrs);
+}
+
 sub admin_tld_handler {
     my ($self, $mm) = @_;
 

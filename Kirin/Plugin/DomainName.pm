@@ -1,5 +1,5 @@
 package Kirin::Plugin::DomainName;
-use Regexp::Common qw/net/;
+use Regexp::Common qw/net number/;
 use Net::DomainRegistration::Simple;
 use List::Util qw/sum/;
 use strict;
@@ -643,30 +643,26 @@ sub admin {
                 $mm->message("Select a Registrar from the supplied list");
                 goto done;
             }
-
             if (!$mm->param("tld")) {
                 $mm->message("You must specify a valid domain TLD");
                 goto done;
             }
-
             if ( ! Kirin::DB::DomainClass->retrieve($mm->param('registrant_class')) ||
                 ! Kirin::DB::DomainClass->retrieve($mm->param('admin_class')) ||
                 ! Kirin::DB::DomainClass->retrieve($mm->param('tech_class')) ) {
                 $mm->message("You must select from the available contact classes");
                 goto done;
             }
-
-
-            if ( !$mm->param("price") ) {
+            if ( !$mm->param("price") || $mm->param("price") != /^$RE{num}{real}{-places=>2}$/ ) {
                 $mm->message("You must specify the annual price for the domain");
                 goto done;
             }
-            
-            if ( ! $mm->param("min_duration") || ! $mm->param("max_duration") ) {
+            if ( ! $mm->param("min_duration") || ! $mm->param("max_duration") || 
+                $mm->param("min_duration") !~ /^$RE{num}{real}{-places=>0}$/ ||
+                $mm->param("max_duration") !~ /^$RE{num}{real}{-places=>0}$/ ) {
                 $mm->message("You must specify the minimum and maximum registration period in years.");
                 goto done;
             }
-            
             my $handler = Kirin::DB::TldHandler->create({
                 map { $_ => $mm->param($_) }
                     qw/tld registrar registrant_class admin_class 
@@ -676,8 +672,28 @@ sub admin {
         } elsif (my $id = $mm->param("edittld")) {
             my $handler = Kirin::DB::TldHandler->retrieve($id);
             if ($handler) {
-                for (qw/tld registrar price min_duration max_duration/) {
-                    next if ! $mm->param($_);
+                if ( ! Kirin::DB::DomainClass->retrieve($mm->param('registrant_class')) ||
+                    ! Kirin::DB::DomainClass->retrieve($mm->param('admin_class')) ||
+                    ! Kirin::DB::DomainClass->retrieve($mm->param('tech_class')) ) {
+                    $mm->message("You must select from the available contact classes");
+                    goto done;
+                }
+                if ( ! Kirin::DB::DomainRegistrar->retrieve($mm->param("registrar")) ) {
+                    $mm->message("Select a Registrar from the supplied list");
+                    goto done;
+                }
+                if ( !$mm->param("price") || $mm->param("price") != /^$RE{num}{real}{-places=>2}$/ ) {
+                    $mm->message("You must specify the annual price for the domain");
+                    goto done;
+                }
+                if ( ! $mm->param("min_duration") || ! $mm->param("max_duration") ||
+                    $mm->param("min_duration") !~ /^$RE{num}{real}{-places=>0}$/ ||
+                    $mm->param("max_duration") !~ /^$RE{num}{real}{-places=>0}$/ ) {
+                    $mm->message("You must specify the minimum and maximum registration period in years.");
+                    goto done;
+                }
+                for (qw/tld registrar registrant_class admin_class
+                        tech_class price min_duration max_duration/) {
                     $handler->$_($mm->param($_));
                 }
                 $handler->update();

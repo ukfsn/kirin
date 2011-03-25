@@ -468,21 +468,26 @@ sub _get_register_args {
 
 sub _get_reghandle {
     my ($self, $mm, $reg) = @_;
-    my $credentials = Kirin->args->{registrar_credentials}->{$reg};
-    if (!$credentials) {
+    my %credentials;
+    my $registrar = Kirin::DB::DomainRegistrar->search(name => $reg);
+    return if ! $registrar;
+    for my $a ($registrar->first->attributes) {
+        $credentials{$a->name} = $a->value;
+    }
+    if (!%credentials) {
         return unless $mm;
         $mm->message("Internal error: Couldn't connect to that registrar");
         Kirin::Utils->email_boss(
             severity => "error",
             context  => "trying to contact registrar $reg",
-            message  => "No credentials found! Set Kirin->args->{registrar_credentials}{$reg}"
+            message  => "No attributes in DB"
         );
         return ( response => $self->list($mm) );
     }
 
     my $r = Net::DomainRegistration::Simple->new(
         registrar => $reg,
-        %{$credentials},
+        %credentials
     );
     if (!$r) {
         return unless $mm;
@@ -646,7 +651,7 @@ sub admin {
                 $mm->message("You must specify a valid domain TLD");
                 goto done;
             }
-            if ( ! Kirin::DB::DomainClass->retrieve($mm->param('registrant_class')) ||
+            if ( ! Kirin::DB::DomainClass->retrieve($mm->param('reg_class')) ||
                 ! Kirin::DB::DomainClass->retrieve($mm->param('admin_class')) ||
                 ! Kirin::DB::DomainClass->retrieve($mm->param('tech_class')) ) {
                 $mm->message("You must select from the available contact classes");
@@ -664,14 +669,14 @@ sub admin {
             }
             my $handler = Kirin::DB::TldHandler->create({
                 map { $_ => $mm->param($_) }
-                    qw/tld registrar registrant_class admin_class 
+                    qw/tld registrar reg_class admin_class 
                        tech_class price min_duration max_duration/
             });
             $mm->message("Handler created") if $handler;
         } elsif (my $id = $mm->param("edittld")) {
             my $handler = Kirin::DB::TldHandler->retrieve($id);
             if ($handler) {
-                if ( ! Kirin::DB::DomainClass->retrieve($mm->param('registrant_class')) ||
+                if ( ! Kirin::DB::DomainClass->retrieve($mm->param('reg_class')) ||
                     ! Kirin::DB::DomainClass->retrieve($mm->param('admin_class')) ||
                     ! Kirin::DB::DomainClass->retrieve($mm->param('tech_class')) ) {
                     $mm->message("You must select from the available contact classes");
@@ -691,7 +696,7 @@ sub admin {
                     $mm->message("You must specify the minimum and maximum registration period in years.");
                     goto done;
                 }
-                for (qw/tld registrar registrant_class admin_class
+                for (qw/tld registrar reg_class admin_class
                         tech_class price min_duration max_duration/) {
                     $handler->$_($mm->param($_));
                 }
@@ -705,7 +710,11 @@ sub admin {
 
     done:
     my @tlds = Kirin::DB::TldHandler->retrieve_all();
-    $mm->respond("plugins/domain_name/admin", tlds => \@tlds);
+    my @registrars = Kirin::DB::DomainRegistrar->retrieve_all();
+    my @classes = Kirin::DB::DomainClass->retrieve_all();
+    $mm->respond("plugins/domain_name/admin", (
+        tlds => \@tlds, registrars => \@registrars,
+        classes => \@classes ));
 }
 
 sub admin_domain_class {

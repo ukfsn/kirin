@@ -1,0 +1,36 @@
+<h3>Registrar Management</h3>
+
+<form method="post" action="/domain_name/admin">
+<input type="submit" value="Return to TLD Management">
+</form>
+
+<table>
+<tr><th>Registrar Name</th></tr>
+[% FOR a = registrars %]
+<tr>
+    <form method="post">
+    <input type="hidden" value="[%a.id%]" name="edit">
+    <td> <input name="name" value="[%a.name%]"> </td>
+    <td> <input type="submit" value="Rename"> </td>
+    </form>
+    <td>
+    <form method="post" action="/domain_name/admin_registrar_attr/[%a.id%]"
+    <input type="submit" value="Configure">
+    </form>
+    </td>
+    <td>
+    <form method="post">
+    <input type="hidden" value="[%a.id%]" name="delete">
+    <input type="submit" value="Delete">
+    </form>
+    </td>
+</tr>
+[% END %]
+
+<tr>
+    <form method="post">
+    <td> <input name="name" > </td>
+    <td> <input type="submit" name="create" value="Create"> </td>
+</tr>
+</table>
+

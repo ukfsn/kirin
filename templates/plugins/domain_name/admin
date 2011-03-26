@@ -1,5 +1,13 @@
 <h3>TLD Management</h3>
 
+<form action="/domain_name/admin_domain_class" method="post">
+<input type="submit" value="Contact Class Configuration">
+</form>
+
+<form action="/domain_name/admin_registrar" method="post">
+<input type="submit" value="Registrar Configuration">
+</form>
+
 <table>
 <tr><th>TLD</th><th>Registrar</th><th>Registrant</th><th>Admin</th><th>Tech</th><th>Price</th><th>Min Years</th><th>Max Years</th></tr>
 [% FOR p = tlds %]

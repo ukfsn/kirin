@@ -1,0 +1,31 @@
+<h3>Registrar Configuration</h3>
+<h4>Registrar: [% registrar.name %]</h4>
+<table>
+<tr>
+    <td><table>
+    <tr><th>Setting</th><th>Value</th></tr>
+    [% FOR a = registrar.attributes %]
+    <tr>
+        <form method="post">
+        <input type="hidden" value="[%a.id%]" name="edit">
+        <input type="hidden" value="[%registrar.id%]" name="registrar">
+        <td> <input name="name" value="[%a.name%]"> </td>
+        <td> <input name="value" value="[%a.value%]"> </td>
+        <td> <input type="submit" value="Edit"> </td>
+        </form>
+        <form method="post">
+        <input type="hidden" value="[%a.id%]" name="delete">
+        <td><input type="submit" value="Delete"> </td>
+        </form>
+    </tr>
+    [% END %]
+    <tr>
+        <form method="post">
+        <input type="hidden" value="[%registrar.id%]" name="registrar">
+        <td> <input name="name" > </td>
+        <td> <input name="value" > </td>
+        <td> <input type="submit" name="create" value="Create"> </td>
+    </tr>
+    </table></td>
+</table>
+<p><a href="/domain_name/admin_registrar">Return to registrar list</a></p>

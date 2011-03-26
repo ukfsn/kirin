@@ -1,0 +1,33 @@
+<h3>Domain Class Attributes</h3>
+<h4>Class: [% class.name %]</h4>
+<table>
+<tr>
+    <td><table>
+    <tr><th>Name</th><th>Label</th><th>Condition</th></tr>
+    [% FOR a = class.attributes %]
+    <tr>
+        <form method="post">
+        <input type="hidden" value="[%a.id%]" name="edit">
+        <input type="hidden" value="[%class.id%]" name="domain_class">
+        <td> <input name="name" value="[%a.name%]"> </td>
+        <td> <input name="label" value="[%a.label%]"> </td>
+        <td> <input name="condition" value="[%a.condition%]"> </td>
+        <td> <input type="submit" value="Edit"> </td>
+        </form>
+        <form method="post">
+        <input type="hidden" value="[%a.id%]" name="delete">
+        <td><input type="submit" value="Delete"> </td>
+        </form>
+    </tr>
+    [% END %]
+    <tr>
+        <form method="post">
+        <input type="hidden" value="[%class.id%]" name="domain_class">
+        <td> <input name="name" > </td>
+        <td> <input name="label" > </td>
+        <td> <input name="condition" > </td>
+        <td> <input type="submit" name="create" value="Create"> </td>
+    </tr>
+    </table></td>
+</table>
+<p><a href="/domain_name/admin_domain_class">Return to class list</a></p>

@@ -657,7 +657,7 @@ sub admin {
                 $mm->message("You must select from the available contact classes");
                 goto done;
             }
-            if ( !$mm->param("price") || $mm->param("price") != /^$RE{num}{real}{-places=>2}$/ ) {
+            if ( !$mm->param("price") || $mm->param("price") !~ /^$RE{num}{real}{-places=>2}$/ ) {
                 $mm->message("You must specify the annual price for the domain");
                 goto done;
             }
@@ -686,7 +686,7 @@ sub admin {
                     $mm->message("Select a Registrar from the supplied list");
                     goto done;
                 }
-                if ( !$mm->param("price") || $mm->param("price") != /^$RE{num}{real}{-places=>2}$/ ) {
+                if ( !$mm->param("price") || $mm->param("price") !~ /^$RE{num}{real}{-places=>2}$/ ) {
                     $mm->message("You must specify the annual price for the domain");
                     goto done;
                 }

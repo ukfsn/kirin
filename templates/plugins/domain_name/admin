@@ -1,35 +1,40 @@
 <h3>TLD Management</h3>
 
 <table>
-<tr><th>TLD</th><th>Registrar</th><th>Registrant</th><th>Admin</th><th>Tech</th><th>Price</th><th>Min Duration</th><th>Max Duration</th></tr>
+<tr><th>TLD</th><th>Registrar</th><th>Registrant</th><th>Admin</th><th>Tech</th><th>Price</th><th>Min Years</th><th>Max Years</th></tr>
 [% FOR p = tlds %]
 <tr>
     <form method="post">
     <input type="hidden" value="[%p.id%]" name="edittld">
     <td> <input name="tld" value="[%p.tld%]"> </td>
+
     <td> <select name="registrar">
     [% FOR r = registrars %]
         <option value="[%r.id%]" [% "SELECTED" IF p.registrar == r.id %]>[% r.name %]</option>
     [% END %]
     </select></td>
+
     <td> <select name="reg_class">
     [% FOR c = classes %]
-        <option value="[%c.id%]" [% "SELECTED" IF p.reg_class == c.id %]>[%c.name %]</option>
+        <option value="[%c.id%]" [% "SELECTED" IF p.reg_class == c.id %]>[% c.name %]</option>
     [% END %]
     </select></td>
+
     <td> <select name="admin_class">
     [% FOR c = classes %]
         <option value="[%c.id%]" [% "SELECTED" IF p.admin_class == c.id %]>[%c.name %]</option>
     [% END %]
     </select></td>
+
     <td> <select name="tech_class">
     [% FOR c = classes %]
         <option value="[%c.id%]" [% "SELECTED" IF p.tech_class == c.id %]>[%c.name %]</option>
     [% END %]
     </select></td>
-    <td> <input name="price" value="[%p.price%]"> </td>
-    <td> <input name="min_duration" value="[%p.min_duration%]"> Years </td>
-    <td> <input name="max_duration" value="[%p.max_duration%]"> Years </td>
+
+    <td> <input name="price" value="[%p.price%]" size=5> </td>
+    <td> <input name="min_duration" value="[%p.min_duration%]" size=2></td>
+    <td> <input name="max_duration" value="[%p.max_duration%]" size=2></td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
     <form method="post">
@@ -48,9 +53,26 @@
         <option value="[%r.id%]" [% "SELECTED" IF oldparams.registrar == r.id %]>[%r.name%]</option>
     [% END %]
     </select></td>
-    <td> <input name="price" > </td>
-    <td> <input name="min_duration" > Years </td>
-    <td> <input name="max_duration" > Years </td>
+    <td> <select name="reg_class">
+    [% FOR c = classes %]
+        <option value="[%c.id%]" [% "SELECTED" IF p.reg_class == c.id %]>[% c.name %]</option>
+    [% END %]
+    </select></td>
+
+    <td> <select name="admin_class">
+    [% FOR c = classes %]
+        <option value="[%c.id%]" [% "SELECTED" IF p.admin_class == c.id %]>[%c.name %]</option>
+    [% END %]
+    </select></td>
+
+    <td> <select name="tech_class">
+    [% FOR c = classes %]
+        <option value="[%c.id%]" [% "SELECTED" IF p.tech_class == c.id %]>[%c.name %]</option>
+    [% END %]
+    </select></td>
+    <td> <input name="price" size=5> </td>
+    <td> <input name="min_duration" size=2 ></td>
+    <td> <input name="max_duration" size=2></td>
     <td> <input type="submit" name="create" value="Create"> </td>
 </tr>
 </table>

@@ -78,7 +78,7 @@ sub register {
     $domain .= ".".$tld_handler->tld;
 
     # Check availability
-    my %rv = $self->_get_reghandle($mm, $tld_handler->registrar);
+    my %rv = $self->_get_reghandle($mm, $tld_handler->registrar->name);
     return $rv{response} if exists $rv{response};
     my $r = $rv{reghandle};
     if (!$r->is_available($domain)) {
@@ -172,7 +172,7 @@ sub transfer {
     $domain .= ".".$tld_handler->tld;
 
     # Check availability
-    my %rv = $self->_get_reghandle($mm, $tld_handler->registrar);
+    my %rv = $self->_get_reghandle($mm, $tld_handler->registrar->name);
     return $rv{response} if exists $rv{response};
     my $r = $rv{reghandle};
     if ($r->is_available($domain)) {
@@ -300,7 +300,7 @@ sub process {
     my $domain = $op->{domain};
 
     my $mm = undef; 
-    my $r = $self->_get_reghandle($mm, $tld_handler->registrar);
+    my $r = $self->_get_reghandle($mm, $tld_handler->registrar->name);
 
     if ( $order->order_type eq 'Domain Registration' ) {
         my $reg = undef;
@@ -513,7 +513,7 @@ sub _get_domain {
         $mm->message("That's not your domain");
         return ( response => $self->list($mm) );
     }
-    my %stuff = $self->_get_reghandle($mm, $d->registrar);
+    my %stuff = $self->_get_reghandle($mm, $d->registrar->name);
     return (response => $stuff{response}) if exists $stuff{response};
     return (object => $d, reghandle => $stuff{reghandle});
 }

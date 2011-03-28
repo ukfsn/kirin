@@ -3,7 +3,7 @@
 <table>
 <tr>
     <td><table>
-    <tr><th>Name</th><th>Label</th><th>Condition</th></tr>
+    <tr><th>Name</th><th>Label</th><th>Customer Field</th><th>Required</th><th>Validation Type</th><th>Validation Rule</th></tr>
     [% FOR a = class.attributes %]
     <tr>
         <form method="post">
@@ -11,7 +11,14 @@
         <input type="hidden" value="[%class.id%]" name="domain_class">
         <td> <input name="name" value="[%a.name%]"> </td>
         <td> <input name="label" value="[%a.label%]"> </td>
-        <td> <input name="condition" value="[%a.condition%]"> </td>
+        <td> <input name="customer_field" value="[%a.customer_field%]"> </td>
+        <td> <input type="checkbox" name="required" [% "CHECKED" IF a.required %]> </td>
+        <td> <select name="validation_type">
+        [% FOR v = validation_types %]
+            <option value="[%v.id%]" [% "SELECTED" IF a.validation_type == v.id %] >[%v.name%]</option>
+        [% END %]
+        </select></td>
+        <td> <input name="validation" value="[%a.validation%]"> </td>
         <td> <input type="submit" value="Edit"> </td>
         </form>
         <form method="post">
@@ -25,7 +32,14 @@
         <input type="hidden" value="[%class.id%]" name="domain_class">
         <td> <input name="name" > </td>
         <td> <input name="label" > </td>
-        <td> <input name="condition" > </td>
+        <td> <input name="customer_field" value="[%a.customer_field%]"> </td>
+        <td> <input type="checkbox" name="required" [% "CHECKED" IF a.required %]> </td>
+        <td> <select name="validation_type">
+        [% FOR v = validation_types %]
+            <option value="[%v.id%]" [% "SELECTED" IF a.validation_type == v.id %] >[%v.name%]</option>
+        [% END %]
+        </select></td>
+        <td> <input name="validation" value="[%a.validation%]"> </td>
         <td> <input type="submit" name="create" value="Create"> </td>
     </tr>
     </table></td>

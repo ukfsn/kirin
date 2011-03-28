@@ -79,10 +79,10 @@ CREATE TABLE jobqueue (
     parameters text
 );
 
-CREATE TABLE data_types (
+CREATE TABLE constraints (
     id integer primary key not null,
     name varchar(255),
-    rule varchar(255)
+    run text
 );    
 
 CREATE TABLE vatrates (

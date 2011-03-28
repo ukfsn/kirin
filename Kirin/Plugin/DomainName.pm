@@ -88,12 +88,6 @@ sub register {
         $args{available} = 1;
     }
 
-    # XXX Get rid of this. Abstract it away by providing a way to specify tld attributes and classes
-    if ( $tld_handler->registrar eq 'Nominet' ) {
-        $args{ukdomain} = 1;
-        $args{types} = [Kirin::DB::RegType->retrieve_all()];
-    }
-
     if (!$mm->param("register")) {
         $args{years} = [ $tld_handler->min_duration .. $tld_handler->max_duration ];
         return $mm->respond("plugins/domain_name/register", %args);
@@ -315,7 +309,7 @@ sub process {
                 domain         => $domain,
                 registrar      => $tld_handler->registrar,
                 tld_handler    => $tld_handler->id,
-                billing        => $json->encode($op->{rv}->{billing}),
+                registrant     => $json->encode($op->{rv}->{registrant}),
                 admin          => $json->encode($op->{rv}->{admin}),
                 technical      => $json->encode($op->{rv}->{technical}),
                 nameserverlist => $json->encode($op->{rv}->{nameservers}),
@@ -365,12 +359,12 @@ sub process {
 }
 
 sub _get_register_args {
-    # Give me back: billing, admin, technical, nameservers, years
+    # Give me back: registrant, admin, technical, nameservers, years
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
     my %rv;
     # Do the initial copy
     for my $field (map { $_->[1] } @{$args{fields}}) {
-        for (qw/admin billing technical/) {
+        for (qw/registrant admin technical/) {
             my $answer = $mm->param($_."_".$field);
             $rv{$_}{$field} = $answer;
         }
@@ -404,10 +398,10 @@ sub _get_register_args {
 
     # Now do some tidy-up
     my $cmess;
-    $rv{admin} = $rv{billing} if $mm->param("copybilling2admin");
-    $rv{technical} = $rv{billing}  if $mm->param("copybilling2technical");
+    $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
+    $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
 
-    for (qw/admin billing technical/) {
+    for (qw/registrant admin technical/) {
         $rv{$_}{company} ||= "n/a";
         if ($rv{$_}{country} !~ /^([a-z]{2})$/i) { 
             delete $rv{$_}{country};
@@ -452,7 +446,7 @@ sub _get_register_args {
 
     # Final check for all parameters
     for my $field (map { $_->[1] } @{$args{fields}}) {
-        for (qw/admin billing technical/) {
+        for (qw/registrant admin technical/) {
             if (! $rv{$_}{$field}) {
                 next if $field eq 'trad-name' || $field eq 'Trading Name';
                 $args{notsupplied}{"${_}_$field"}++;
@@ -463,6 +457,7 @@ sub _get_register_args {
             }
         }
     }
+    use Data::Dumper; warn Dumper \%rv;
     return %rv;
 }
 
@@ -504,6 +499,7 @@ sub _get_reghandle {
 
 sub _get_domain {
     my ($self, $mm, $domainid) = @_;
+    return (response => $self->list($mm)) if $domainid !~ /^\d+$/;
     my $d = Kirin::DB::DomainName->retrieve($domainid);
     if (!$d) { 
         $mm->message("That domain doesn't exist");
@@ -527,7 +523,7 @@ sub change_contacts {
     my %args = ( fields => \@fieldmap, domain => $domain );
 
     # Massage existing stuff into oldparams
-    for my $ctype (qw/billing admin technical/) {
+    for my $ctype (qw/registrant admin technical/) {
         my $it = $json->decode($rv{object}->$ctype);
         for (@fieldmap) {
             $args{oldparams}{$ctype."_".$_->[1]} = $it->{$_->[1]};
@@ -539,7 +535,7 @@ sub change_contacts {
     return $rv{response} if exists $rv{response};
 
     if ($mm->param("change") and $handle->change_contact(domain => $domain->domain, %rv)) {
-        for (qw/billing admin technical/) {
+        for (qw/registrant admin technical/) {
             $domain->$_($json->encode($rv{$_}));
         }
         $domain->update;
@@ -890,6 +886,7 @@ sub _setup_db {
     Kirin::DB::TldHandler->has_a(tech_class => "Kirin::DB::DomainClass");
 
     Kirin::DB::DomainClassAttr->has_a(domain_class => "Kirin::DB::DomainClass");
+    Kirin::DB::DomainClassAttr->has_a(validation_type => "Kirin::DB::ValidationType");
 
     Kirin::DB::DomainClass->has_many(attributes => "Kirin::DB::DomainClassAttr");
 
@@ -905,7 +902,7 @@ CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     domain varchar(255) NOT NULL, 
     registrar integer,
     registrar_id varchar(255),
-    billing text,
+    registrant text,
     admin text,
     technical text,
     nameserverlist varchar(255),
@@ -931,7 +928,10 @@ CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     domain_class integer,
     name varchar(255),
     label varchar(255),
-    condition text
+    customer_field varchar(255),
+    required integer,
+    validation_type integer,
+    validation text
 );
 
 CREATE TABLE IF NOT EXISTS domain_registrar (

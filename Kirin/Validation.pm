@@ -9,7 +9,7 @@ use Email::Valid;
 
 my $valid_check = Email::Valid->new(-mxcheck => 1);
 no strict 'vars';
-my %validations = (
+our %validations = (
     'Printable' => sub {
         return $_[0] =~ /^[[:print:]]*$/ ? 1 : 0;
     },
@@ -37,6 +37,9 @@ my %validations = (
     'Fax' => sub {
         return $_[0] =~ /^(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$/ ? 1 : 0;
     },
+    'UK Reg Type' => sub {
+        return defined $uk_reg_types{$_[0]} =~ /^$/ ? 1 : 0;
+    },
     'Regexp' => sub {
         my $re = $_[1];
         $re = qr/$re/ if not ref $re eq "Regexp";
@@ -45,6 +48,25 @@ my %validations = (
     'CODE' => sub {
         return $_[1]->($_[0]) ? 1 : 0;
     }
+);
+
+our %uk_reg_types = (
+    LTD => 'UK Limited Company',
+    PLC => 'UK Public Limited Company',
+    PTNR => 'UK Partnership',
+    STRA => 'UK Sole Trader',
+    LLP => 'UK Limited Liability Partnership',
+    IP => 'UK Industrial/Provident Registered Company',
+    IND => 'UK Individual (representing self)',
+    SCH => 'UK School',
+    RCHAR => 'UK Registered Charity',
+    GOV => 'UK Government Body',
+    CRC => 'UK Corporation by Royal Charter',
+    STAT => 'UK Statutory Body',
+    OTHER => 'UK Entity that does not fit into any of the above (e.g. clubs, associations, many universities)',
+    FIND => 'Non-UK Individual (representing self)',
+    FCORP => 'Non-UK Corporation',
+    FOTHER => 'Non-UK Entity that does not fit into any of the above (e.g. charities, schools, clubs, associations)'
 );
 
 sub names {

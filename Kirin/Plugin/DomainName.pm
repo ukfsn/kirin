@@ -362,6 +362,15 @@ sub _get_register_args {
     # Give me back: registrant, admin, technical, nameservers, years
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
     my %rv;
+
+    for my $class (qw/reg_class admin_class tech_class/) {
+        # XXX need to do something to make params pass properly
+        my $c = $tld_handler->$class;
+        if ( ! Kirin::Validation->validate_class($mm, $c) ) {
+            warn "Validation of ".$class." failed";
+        }
+    }
+
     # Do the initial copy
     for my $field (map { $_->[1] } @{$args{fields}}) {
         for (qw/registrant admin technical/) {

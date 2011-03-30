@@ -413,36 +413,6 @@ sub _get_register_args {
         }
         # Anything else?
     }
-    if ( $tld_handler->registrar eq 'Nominet' ) {
-        if ( ! $mm->param("type") ) {
-            $mm->message("You must select a registrant type");
-            $rv{response} = $mm->respond("plugins/domain_name/register", %args);
-        }
-        else {
-            if ( $tld_handler->tld eq 'LTD' || $tld_handler->tld eq 'PLC' ) {
-                if ( $mm->param("type") !~ /^(LTD|PLC)$/ ) {
-                    $mm->message("Only a UK company registered with Companies House may register a .ltd.uk or .plc.uk domain");
-                    $rv{response} = $mm->respond("plugins/domain_name/register", %args);
-                }
-            }
-            if ( $mm->param("type") =~ /^(LTD|PLC)$/ ) {
-                if ( ! $mm->param("cono") ) {
-                    $mm->message("You must specify the Registered Company Number");
-                    $rv{notsupplied}{cono}++;
-                    $rv{response} = $mm->respond("plugins/domain_name/register", %args);
-                }
-                else {
-                    $rv{admin}{"co-no"} = $mm->param("cono");
-                }
-            }
-            $rv{admin}{type} = $mm->param("type");
-        }
-        if ( $mm->param("type") !~ /^(IND|FIND)$/ && $mm->param("opt-out") eq 'Y' ) {
-            $mm->message("Only non-trading individuals may select WHOIS privacy");
-            $rv{response} = $mm->respond("plugins/domain_name/register", %args);
-        }
-        $rv{admin}{"opt-out"} = $mm->param("opt-out");
-    }
 
     # Final check for all parameters
     for my $field (map { $_->[1] } @{$args{fields}}) {
@@ -457,7 +427,6 @@ sub _get_register_args {
             }
         }
     }
-    use Data::Dumper; warn Dumper \%rv;
     return %rv;
 }
 

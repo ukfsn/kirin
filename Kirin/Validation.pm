@@ -12,7 +12,7 @@ no strict 'vars';
 my %validations = (
     'Printable' => sub {
         return $_[0] =~ /^[[:print:]]*$/ ? 1 : 0;
-    }
+    },
     'Number' => sub {
         return $_[0] =~ /^$RE{num}{real}$/ ? 1 : 0;
     },

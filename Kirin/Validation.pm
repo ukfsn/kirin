@@ -9,7 +9,7 @@ use Email::Valid;
 
 my $valid_check = Email::Valid->new(-mxcheck => 1);
 no strict 'vars';
-our %validations = (
+my %validations = (
     'Printable' => sub {
         return $_[0] =~ /^[[:print:]]*$/ ? 1 : 0;
     }

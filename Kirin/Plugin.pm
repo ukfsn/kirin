@@ -6,6 +6,7 @@ use UNIVERSAL::moniker;
 use UNIVERSAL::require;
 use Net::DNS qw/rrsort/;
 use Data::Password::BasicCheck;
+use Kirin::Validation;
 
 sub name { shift->moniker }
 sub user_name {

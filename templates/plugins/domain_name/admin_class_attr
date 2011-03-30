@@ -11,11 +11,16 @@
         <input type="hidden" value="[%class.id%]" name="domain_class">
         <td> <input name="name" value="[%a.name%]"> </td>
         <td> <input name="label" value="[%a.label%]"> </td>
-        <td> <input name="customer_field" value="[%a.customer_field%]"> </td>
+        <td> <select name="customer_field">
+            <option value="" > -- </option>
+        [% FOR f = fields %]
+            <option value="[%f.2%]" [% "SELECTED" IF a.customer_field == f.2 %] >[%f.0%]</option>
+        [% END %]
+        </select></td>
         <td> <input type="checkbox" name="required" [% "CHECKED" IF a.required %]> </td>
         <td> <select name="validation_type">
-        [% FOR v = validation_types %]
-            <option value="[%v.id%]" [% "SELECTED" IF a.validation_type == v.id %] >[%v.name%]</option>
+        [% FOR v = validation %]
+            <option value="[%v%]" [% "SELECTED" IF a.validation_type == v %] >[%v%]</option>
         [% END %]
         </select></td>
         <td> <input name="validation" value="[%a.validation%]"> </td>
@@ -32,14 +37,19 @@
         <input type="hidden" value="[%class.id%]" name="domain_class">
         <td> <input name="name" > </td>
         <td> <input name="label" > </td>
-        <td> <input name="customer_field" value="[%a.customer_field%]"> </td>
-        <td> <input type="checkbox" name="required" [% "CHECKED" IF a.required %]> </td>
-        <td> <select name="validation_type">
-        [% FOR v = validation_types %]
-            <option value="[%v.id%]" [% "SELECTED" IF a.validation_type == v.id %] >[%v.name%]</option>
+        <td> <select name="customer_field">
+            <option value="" > -- </option>
+        [% FOR f = fields %]
+            <option value="[%f.2%]">[%f.0%]</option>
         [% END %]
         </select></td>
-        <td> <input name="validation" value="[%a.validation%]"> </td>
+        <td> <input type="checkbox" name="required" > </td>
+        <td> <select name="validation_type">
+        [% FOR v = validation %]
+            <option value="[%v%]" >[%v%]</option>
+        [% END %]
+        </select></td>
+        <td> <input name="validation" > </td>
         <td> <input type="submit" name="create" value="Create"> </td>
     </tr>
     </table></td>

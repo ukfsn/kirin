@@ -669,7 +669,8 @@ sub admin {
                        tech_class price min_duration max_duration/
             });
             $mm->message("Handler created") if $handler;
-        } elsif (my $id = $mm->param("edittld")) {
+        } elsif ($mm->param("edittld")) {
+            my $id = $mm->param("edittld");
             my $handler = Kirin::DB::TldHandler->retrieve($id);
             if ($handler) {
                 if ( ! Kirin::DB::DomainClass->retrieve($mm->param('reg_class')) ||
@@ -698,9 +699,10 @@ sub admin {
                 }
                 $handler->update();
             }
-        } elsif (my $id = $mm->param("deletetld")) {
-             my $thing = Kirin::DB::TldHandler->retrieve($id);
-             if ($thing) { $thing->delete; $mm->message("Handler deleted") }
+        } elsif ($mm->param("deletetld")) {
+            my $id = $mm->param("deletetld");
+            my $thing = Kirin::DB::TldHandler->retrieve($id);
+            if ($thing) { $thing->delete; $mm->message("Handler deleted") }
         }
     }
 
@@ -727,14 +729,16 @@ sub admin_domain_class {
         });
         $mm->message("Domain Class created") if $type;
     }
-    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+    elsif ( $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $id = $mm->param('edit');
         my $class = Kirin::DB::DomainClass->retrieve($id);
         if ( $class ) {
             $class->name($mm->param('name'));
             $class->update();
         }
     }
-    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $id = $mm->param('delete');
         my $class = Kirin::DB::DomainClass->retrieve($id);
         if ( $class ) {
             $class->delete;
@@ -756,38 +760,58 @@ sub admin_domain_class_attr {
     }
     
     if ( $mm->param('create') ) {
-        for (qw/name label condition/) {
+        for (qw/name label validation_type/) {
             if ( ! $mm->param($_)) {
                 $mm->message("You must supply $_");
                 goto done;
             }
         }
+        my $customer = $mm->{customer};
+        my $cf = $mm->param('customer_field');
+        if ( $mm->param('customer_field') && ! $customer->$cf ) {
+            $mm->message("If you provide a customer field it must be from the list");
+            $mm->param('customer_field') = undef;
+        }
+        if ( $mm->param('validation_type') && ! $Kirin::Validation::validations{$mm->param('validation_type')} ) {
+            $mm->message("Select only from the list of available validation types");
+            goto done;
+        }
         my $attr = Kirin::DB::DomainClassAttr->insert({
-            (map {$_ => $mm->param($_) } qw/name label condition/),
+            (map {$_ => $mm->param($_) } qw/name label customer_field required validation_type validation/),
             domain_class => $class->id
         });
         $mm->message("Attribute created");
     }
-    elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+    elsif ($mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $id = $mm->param('edit');
         my $attr = Kirin::DB::DomainClassAttr->retrieve($id);
         if ( $attr ) {
-            for (qw/name label condition/) {
-                next if ! $mm->param($_);
+            for (qw/name label customer_field required validation_type validation/) {
                 $attr->$_($mm->param($_));
+                if ( $_ eq 'required' && $mm->param('required') ne 'on' ) {
+                    $attr->required('');
+                }
             }
             $attr->update();
             $mm->message("Attribute Updated");
         }
+        $id = undef;
     }
-    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $id = $mm->param('delete');
         my $attr = Kirin::DB::DomainClassAttr->retrieve($id);
         if ( $attr ) {
             $attr->delete;
             $mm->message("Attribute deleted");
         }
+        $id = undef;
     }
     done:
-    $mm->respond("plugins/domain_name/admin_class_attr", class => $class);
+    $mm->respond("plugins/domain_name/admin_class_attr", (
+        class => $class,
+        validation => [Kirin::Validation->names()],
+        fields => \@fieldmap
+    ));
 }
 
 sub admin_registrar {
@@ -801,7 +825,8 @@ sub admin_registrar {
         });
         $mm->message("Registrar created") if $r;
     }
-    elsif ( my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+    elsif ( $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $id = $mm->param('edit');
         my $r = Kirin::DB::DomainRegistrar->retrieve($id);
         if ( $r ) {
             for (qw/name active/) {
@@ -812,7 +837,8 @@ sub admin_registrar {
             $mm->message("Registrar Updated");
         }
     }
-    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $id = $mm->param('delete');
         my $r = Kirin::DB::DomainRegistrar->retrieve($id);
         if ( $r ) {
             $r->delete;
@@ -848,7 +874,8 @@ sub admin_registrar_attr {
         warn "Cannot create" if ! $attr;
         $mm->message("Attribute created");
     }
-    elsif (my $id = $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+    elsif ($mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
+        my $id = $mm->param('edit');
         my $a = Kirin::DB::DomainRegAttr->retrieve($id);
         if ( $a ) {
             for (qw/name value/) {
@@ -859,7 +886,8 @@ sub admin_registrar_attr {
             $mm->message("Registrar Updated");
         }
     }
-    elsif ( my $id = $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+    elsif ( $mm->param('delete') && $mm->param('delete') =~ /^\d+$/ ) {
+        my $id = $mm->param('delete');
         my $a = Kirin::DB::DomainRegAttr->retrieve($id);
         if ($a) {
             $a->delete;
@@ -886,7 +914,6 @@ sub _setup_db {
     Kirin::DB::TldHandler->has_a(tech_class => "Kirin::DB::DomainClass");
 
     Kirin::DB::DomainClassAttr->has_a(domain_class => "Kirin::DB::DomainClass");
-    Kirin::DB::DomainClassAttr->has_a(validation_type => "Kirin::DB::ValidationType");
 
     Kirin::DB::DomainClass->has_many(attributes => "Kirin::DB::DomainClassAttr");
 
@@ -930,7 +957,7 @@ CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,
     label varchar(255),
     customer_field varchar(255),
     required integer,
-    validation_type integer,
+    validation_type varchar(255),
     validation text
 );
 

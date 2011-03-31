@@ -5,12 +5,13 @@
 </form>
 
 <table>
-<tr><th>Class Name</th></tr>
+<tr><th>Class Name</th><th>Label</th></tr>
 [% FOR a = classes %]
 <tr>
     <form method="post">
     <input type="hidden" value="[%a.id%]" name="edit">
     <td> <input name="name" value="[%a.name%]"> </td>
+    <td> <input name="label" value="[%a.label%]"> </td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
     <td>
@@ -30,6 +31,7 @@
 <tr>
     <form method="post">
     <td> <input name="name" > </td>
+    <td> <input name="label" > </td>
     <td> <input type="submit" name="create" value="Create"> </td>
 </tr>
 </table>

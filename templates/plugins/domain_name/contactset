@@ -8,20 +8,31 @@
         [% "checked" IF NOT oldparams OR oldparams.copyreg2technical %]
         ></td>
     </tr>
-    [% FOR f = fields %]
+    [% FOR r = tld.reg_class.attributes %]
     <tr>
-        <th>[%f.0%]</th>
-        <td><input name="registrant_[%f.1%]" value="[%SET c = f.2; 
-        SET x = "registrant_" _ f.1; oldparams.$x || self.customer.$c |html%]">
+        <th>[%r.label%]</th>
+
+        <td><input name="registrant_[%r.name%]" value="[%SET c = r.customer_field; 
+        SET x = "registrant_" _ r.name; oldparams.$x || self.customer.$c |html%]">
         [% "<span class='error'>*</span>" IF notsupplied.$x %]
         </td>
-        <td><input name="admin_[%f.1%]" value="[%
-        SET x = "admin_" _ f.1; oldparams.$x |html%]">
-        [% "<span class='error'>*</span>" IF notsupplied.$x %]
+        <td>
+            [% FOR a = tld.admin_class.attributes %]
+                [% IF a.name == r.name %]
+                    <input name="admin_[%r.name%]" value="[%
+                    SET x = "admin_" _ r.name; oldparams.$x |html%]">
+                    [% "<span class='error'>*</span>" IF notsupplied.$x %]
+                [% END %]
+            [% END %]
         </td>
-        <td><input name="technical_[%f.1%]" value="[%
-        SET x = "technical_" _ f.1; oldparams.$x |html%]">
-        [% "<span class='error'>*</span>" IF notsupplied.$x %]
+        <td>
+            [% FOR t = tld.tech_class.attributes %]
+                [% IF t.name == r.name %]
+                    <input name="admin_[%r.name%]" value="[%
+                    SET x = "tech_" _ r.name; oldparams.$x |html%]">
+                    [% "<span class='error'>*</span>" IF notsupplied.$x %]
+                [%END%]
+            [% END %]
         </td>
     </tr>
     [% END %]

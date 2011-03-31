@@ -20,6 +20,9 @@ our %validations = (
         my %list = map { $_ => 1 } split(/,/, $_[1]);
         return defined $lists{$_[0]} ? 1 : 0;
     },
+    'Country Code' => sub {
+        return $_[0] =~ /^[a-z]{2}$/ ? 1 : 0;
+    },
     'UK Postcode' => sub {
         return $_[0] =~  /^([A-PR-UWYZ0-9][A-HK-Y0-9][AEHMNPRTVXY0-9]?[ABEHMNPRVWXY0-9]? {1,2}[0-9][ABD-HJLN-UW-Z]{2}|GIR 0AA)$/ ? 1 : 0;
     },
@@ -78,13 +81,14 @@ sub names {
 }
 
 sub validate_class {
-    my ($self, $mm, $class, $prefix) = @_;
+    my ($self, $mm, $class, $prefix, $args) = @_;
     my $params = $mm->{req}->parameters();
     my $errors;
     for my $a ($class->attributes) {
         my $field = $a->name;
         $field = $prefix.$field if $prefix;
         if ( defined $a->required && ! $params->{$field} ) {
+            $args->{notsupplied}{$field}++;
             $mm->message($a->label." is required");
             $errors++;
             next;

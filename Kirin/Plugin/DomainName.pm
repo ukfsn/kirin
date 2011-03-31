@@ -75,6 +75,7 @@ sub register {
         $mm->message("We don't handle that top-level domain");
         return $mm->respond("plugins/domain_name/register", %args);
     }
+    $args{tld} = $tld_handler;
     $domain .= ".".$tld_handler->tld;
 
     # Check availability
@@ -363,17 +364,6 @@ sub _get_register_args {
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
     my %rv;
 
-    for my $class (qw/reg_class admin_class tech_class/) {
-        # XXX need to do something to make params pass properly
-        my $c = $tld_handler->$class;
-        my $prefix = 'registrant_';
-        $prefix = 'admin_' if $class eq 'admin_class';
-        $prefix = 'technical' if $class eq 'tech_class';
-        if ( ! Kirin::Validation->validate_class($mm, $c, $prefix) ) {
-            warn "Validation of ".$class." failed";
-        }
-    }
-
     # Do the initial copy
     for my $field (map { $_->[1] } @{$args{fields}}) {
         for (qw/registrant admin technical/) {
@@ -395,7 +385,8 @@ sub _get_register_args {
             for (@ns) {
                 if (!/^$RE{net}{domain}{-nospace}$/) { 
                     $mm->message("Nameserver is not a valid IP address");
-                    $ok = 0;
+                    $mm->respond("plugins/domain_name/register", %args);
+                    $ok = undef;
                 }
             }
             if ($ok) { $rv{nameservers} = \@ns }
@@ -408,35 +399,19 @@ sub _get_register_args {
         }
     }
 
-    # Now do some tidy-up
-    my $cmess;
     $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
     $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
 
-    for (qw/registrant admin technical/) {
-        $rv{$_}{company} ||= "n/a";
-        if ($rv{$_}{country} !~ /^([a-z]{2})$/i) { 
-            delete $rv{$_}{country};
-            $cmess++ || $mm->message("Country should be submitted as a two-letter ISO country code");
-        }
-        if (!Email::Valid->address($rv{$_}{email})) {
-            delete $rv{$_}{email};
-            $mm->message("Email address for $_ contact is not valid");
-        }
-        # Anything else?
-    }
-
-    # Final check for all parameters
-    for my $field (map { $_->[1] } @{$args{fields}}) {
-        for (qw/registrant admin technical/) {
-            if (! $rv{$_}{$field}) {
-                next if $field eq 'trad-name' || $field eq 'Trading Name';
-                $args{notsupplied}{"${_}_$field"}++;
-                $rv{response} = 
-                    $just_contacts ? 
-                        $mm->respond("plugins/domain_name/change_contacts", %args)
-                    :   $mm->respond("plugins/domain_name/register", %args);
-            }
+    for my $class (qw/reg_class admin_class tech_class/) {
+        my $c = $tld_handler->$class;
+        my $prefix = 'registrant_';
+        $prefix = 'admin_' if $class eq 'admin_class';
+        $prefix = 'technical' if $class eq 'tech_class';
+        if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%args) ) {
+            $rv{response} = 
+                $just_contacts ?
+                    $mm->respond("plugins/domain_name/change_contacts", %args)
+                :   $mm->respond("plugins/domain_name/register", %args);
         }
     }
     return %rv;
@@ -701,20 +676,23 @@ sub admin_domain_class {
     if (!$mm->{user}->is_root) { return $mm->respond("403handler") }
 
     if ( $mm->param('create') ) {
-        if ( ! $mm->param('name') ) {
-            $mm->message("You must provide the name for the Class");
-            goto done;
+        for (qw/name label/) {
+            if ( ! $mm->param($_) ) {
+                $mm->message("You must supply $_");
+                goto done;
+            }
         }
         my $type = Kirin::DB::DomainClass->insert({
-            name => $mm->param('name')
-        });
+            map {$_ => $mm->param($_) } qw/name label/ });
         $mm->message("Domain Class created") if $type;
     }
     elsif ( $mm->param('edit') && $mm->param('edit') =~ /^\d+$/ ) {
         my $id = $mm->param('edit');
         my $class = Kirin::DB::DomainClass->retrieve($id);
         if ( $class ) {
-            $class->name($mm->param('name'));
+            for (qw/name label/) {
+                $class->$_($mm->param($_));
+            }
             $class->update();
         }
     }
@@ -929,7 +907,8 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
 );
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
-    name varchar(255)
+    name varchar(255),
+    label varchar(255)
 );
 
 CREATE TABLE IF NOT EXISTS domain_class_attr ( id integer primary key not null,

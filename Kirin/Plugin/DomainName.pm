@@ -366,7 +366,10 @@ sub _get_register_args {
     for my $class (qw/reg_class admin_class tech_class/) {
         # XXX need to do something to make params pass properly
         my $c = $tld_handler->$class;
-        if ( ! Kirin::Validation->validate_class($mm, $c) ) {
+        my $prefix = 'registrant_';
+        $prefix = 'admin_' if $class eq 'admin_class';
+        $prefix = 'technical' if $class eq 'tech_class';
+        if ( ! Kirin::Validation->validate_class($mm, $c, $prefix) ) {
             warn "Validation of ".$class." failed";
         }
     }

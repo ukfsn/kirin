@@ -78,29 +78,31 @@ sub names {
 }
 
 sub validate_class {
-    my ($self, $mm, $class) = @_;
+    my ($self, $mm, $class, $prefix) = @_;
     my $params = $mm->{req}->parameters();
     my $errors;
     for my $a ($class->attributes) {
-        if ( defined $a->required && ! $params->{$a->name} ) {
-            $mm->message($a->name." is required");
+        my $field = $a->name;
+        $field = $prefix.$field if $prefix;
+        if ( defined $a->required && ! $params->{$field} ) {
+            $mm->message($a->label." is required");
             $errors++;
             next;
         }
-        next if ! defined $params->{$a->name};
-        if ( defined $a->min_length && length $params->{$a->name} < $a->min_length ) {
-            $mm->message($a->name." must be at least ".$a->min_length." characters long");
-            $errors++;
-            next;
-        }
-        if ( defined $a->max_length && length $params->{$a->name} > $a->max_length ) {
-            $mm->message($a->name." cannot be longer than ".$a->max_length);
-            $errors++;
-            next;
-        }
+        next if ! defined $params->{$field};
+        #if ( defined $a->min_length && length $params->{$field} < $a->min_length ) {
+        #    $mm->message($a->label." must be at least ".$a->min_length." characters long");
+        #    $errors++;
+        #    next;
+        #}
+        #if ( defined $a->max_length && length $params->{$label} > $a->max_length ) {
+        #    $mm->message($a->label." cannot be longer than ".$a->max_length);
+        #    $errors++;
+        #    next;
+        #}
         if ( $validation{$a->validation_type} ) {
-            if ( ! $validations{$a->validation_type}->($params->{$a->name}, $a->validation) ) {
-                $mm->message($a->name." is not a valid ".$a->validation);
+            if ( ! $validations{$a->validation_type}->($params->{$field}, $a->validation) ) {
+                $mm->message($a->label." is not a valid ".$a->validation);
                 $errors++;
                 next;;
             }

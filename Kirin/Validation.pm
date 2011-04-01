@@ -21,7 +21,7 @@ our %validations = (
         return defined $lists{$_[0]} ? 1 : 0;
     },
     'Country Code' => sub {
-        return $_[0] =~ /^[a-z]{2}$/ ? 1 : 0;
+        return $_[0] =~ /^[a-zA-Z]{2}$/ ? 1 : 0;
     },
     'UK Postcode' => sub {
         return $_[0] =~  /^([A-PR-UWYZ0-9][A-HK-Y0-9][AEHMNPRTVXY0-9]?[ABEHMNPRVWXY0-9]? {1,2}[0-9][ABD-HJLN-UW-Z]{2}|GIR 0AA)$/ ? 1 : 0;
@@ -45,7 +45,14 @@ our %validations = (
         return $_[0] =~ /^(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$/ ? 1 : 0;
     },
     'UK Reg Type' => sub {
-        return defined $uk_reg_types{$_[0]} =~ /^$/ ? 1 : 0;
+        return if ! defined $uk_reg_types{$_[0]};
+        if ( $_[0] eq 'LTD' || $_[0] eq 'PLC' ) {
+            if ( ! $_[2]->{registrant}{'co-no'} ) {
+                $_[3]->message('Company Number is required');
+                $_[4]->{error}{'co-no'}++;
+            }
+        }
+        return 1;
     },
     'Regexp' => sub {
         my $re = $_[1];
@@ -80,33 +87,32 @@ sub names {
     return keys %validations;
 }
 
+sub domain_name {
+    my ($self, $domain) = @_;
+    return $validations{'Domain'}->($domain, undef);
+}
+
+sub email {
+    my ($self, $email) = @_;
+    return $validations{'Email Address'}->($email, undef);
+}
+
 sub validate_class {
-    my ($self, $mm, $class, $prefix, $args) = @_;
-    my $params = $mm->{req}->parameters();
+    my ($self, $mm, $class, $prefix, $rv, $args) = @_;
     my $errors;
     for my $a ($class->attributes) {
         my $field = $a->name;
-        $field = $prefix.$field if $prefix;
-        if ( defined $a->required && ! $params->{$field} ) {
-            $args->{notsupplied}{$field}++;
+        if ( defined $a->required && ! defined $rv->{$prefix}{$field} ) {
+            $args->{error}{$prefix.'_'.$field}++;
             $mm->message($a->label." is required");
             $errors++;
             next;
         }
-        next if ! defined $params->{$field};
-        #if ( defined $a->min_length && length $params->{$field} < $a->min_length ) {
-        #    $mm->message($a->label." must be at least ".$a->min_length." characters long");
-        #    $errors++;
-        #    next;
-        #}
-        #if ( defined $a->max_length && length $params->{$label} > $a->max_length ) {
-        #    $mm->message($a->label." cannot be longer than ".$a->max_length);
-        #    $errors++;
-        #    next;
-        #}
-        if ( $validation{$a->validation_type} ) {
-            if ( ! $validations{$a->validation_type}->($params->{$field}, $a->validation) ) {
-                $mm->message($a->label." is not a valid ".$a->validation);
+        next if ! defined $rv->{$prefix}{$field};
+        if ( $validations{$a->validation_type} ) {
+            if ( ! $validations{$a->validation_type}->($rv->{$prefix}{$field}, $a->validation, $rv, $mm, $args) ) {
+                $args->{error}{$prefix.'_'.$field}++;
+                $mm->message($a->label." is not valid");
                 $errors++;
                 next;;
             }

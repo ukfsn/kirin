@@ -57,16 +57,15 @@ sub register {
     my $domain = $mm->param("domainpart");
     my $tld    = $mm->param("tld");
     my %args = (tlds      => [Kirin::DB::TldHandler->retrieve_all],
-                oldparams => $mm->{req}->parameters,
-                fields => \@fieldmap,
+                oldparams => $mm->{req}->parameters
                );
     if (!$domain or !$tld) { 
         return $mm->respond("plugins/domain_name/register", %args);
     }
 
     $domain =~ s/\.$//;
-    if ($domain =~ /\./) { 
-        $mm->message("Domain name was malformed");
+    if (! Kirin::Validation->domain_name($domain) ) { 
+        $mm->message("Selected domain name is not valid");
         return $mm->respond("plugins/domain_name/register", %args);
     }
 
@@ -364,56 +363,57 @@ sub _get_register_args {
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
     my %rv;
 
-    # Do the initial copy
-    for my $field (map { $_->[1] } @{$args{fields}}) {
-        for (qw/registrant admin technical/) {
-            my $answer = $mm->param($_."_".$field);
-            $rv{$_}{$field} = $answer;
+    for my $class (qw/reg_class admin_class tech_class/) {
+        my $c = $tld_handler->$class;
+        my $prefix = 'registrant';
+        $prefix = 'admin' if $class eq 'admin_class';
+        $prefix = 'technical' if $class eq 'tech_class';
+        for my $field (map { $_->name } $c->attributes) {
+            my $answer = $mm->param($prefix."_".$field);
+            $rv{$prefix}{$field} = $answer;
+        }
+        $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
+        $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
+        if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%rv, \%args) ) {
+            $rv{response} = $just_contacts ?
+                    $mm->respond("plugins/domain_name/change_contacts", %args)
+                :   $mm->respond("plugins/domain_name/register", %args);
         }
     }
 
     if (!$just_contacts) {
+        $args{error}{nameservers}++;
         if ($mm->param("usedefaultns")) { 
             $rv{nameservers} = [
                 Kirin->args->{primary_dns_server},
                 Kirin->args->{secondary_dns_server},
             ]
         } else {
+            $rv{nameservers} = undef;
             # Check that they're IP addresses.
             my @ns = map { $mm->param($_) } qw(primary_ns secondary_ns);
             my $ok = 1;
             for (@ns) {
-                if (!/^$RE{net}{domain}{-nospace}$/) { 
-                    $mm->message("Nameserver is not a valid IP address");
+                if ($_ !~ /^$RE{net}{domain}{-nospace}$/) { 
+                    $mm->message("Nameserver is not valid");
                     $mm->respond("plugins/domain_name/register", %args);
+                    $args{error}{nameservers}++;
                     $ok = undef;
                 }
             }
             if ($ok) { $rv{nameservers} = \@ns }
         }
+
         if ( ! $mm->param("years") ) {
-            $args{years} = [ $tld_handler->min_duration .. $tld_handler->max_duration ];
-            $args{notsupplied}{years}++;
-            
+            $args{error}{years}++;
             $rv{response} = $mm->respond("plugins/domain_name/register", %args);
         }
-    }
 
-    $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
-    $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
-
-    for my $class (qw/reg_class admin_class tech_class/) {
-        my $c = $tld_handler->$class;
-        my $prefix = 'registrant_';
-        $prefix = 'admin_' if $class eq 'admin_class';
-        $prefix = 'technical' if $class eq 'tech_class';
-        if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%args) ) {
-            $rv{response} = 
-                $just_contacts ?
-                    $mm->respond("plugins/domain_name/change_contacts", %args)
-                :   $mm->respond("plugins/domain_name/register", %args);
+        if ( $args{error} ) {
+            $args{years} = [ $tld_handler->min_duration .. $tld_handler->max_duration ];
         }
     }
+
     return %rv;
 }
 
@@ -768,8 +768,7 @@ sub admin_domain_class_attr {
     done:
     $mm->respond("plugins/domain_name/admin_class_attr", (
         class => $class,
-        validation => [Kirin::Validation->names()],
-        fields => \@fieldmap
+        validation => [Kirin::Validation->names()]
     ));
 }
 

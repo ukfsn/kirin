@@ -14,14 +14,14 @@
 
         <td><input name="registrant_[%r.name%]" value="[%SET c = r.customer_field; 
         SET x = "registrant_" _ r.name; oldparams.$x || self.customer.$c |html%]">
-        [% "<span class='error'>*</span>" IF notsupplied.$x %]
+        [% "<span class='error'>*</span>" IF error.$x %]
         </td>
         <td>
             [% FOR a = tld.admin_class.attributes %]
                 [% IF a.name == r.name %]
                     <input name="admin_[%r.name%]" value="[%
                     SET x = "admin_" _ r.name; oldparams.$x |html%]">
-                    [% "<span class='error'>*</span>" IF notsupplied.$x %]
+                    [% "<span class='error'>*</span>" IF error.$x %]
                 [% END %]
             [% END %]
         </td>
@@ -30,7 +30,7 @@
                 [% IF t.name == r.name %]
                     <input name="admin_[%r.name%]" value="[%
                     SET x = "tech_" _ r.name; oldparams.$x |html%]">
-                    [% "<span class='error'>*</span>" IF notsupplied.$x %]
+                    [% "<span class='error'>*</span>" IF error.$x %]
                 [%END%]
             [% END %]
         </td>
@@ -38,20 +38,6 @@
     [% END %]
     </table>
 
-    [% IF ukdomain %]
-    <h3>Registrant Type</h3>
-
-    <p><select name="type">
-        [% FOREACH t IN types %]
-            <option value="[%t.type%]" [% "SELECTED" IF oldparams.type == t.type %]>[%t.description%]</option>
-        [% END %]
-    </select></p>
-    <p><b>Company Number (for UK Companies only):</b> <input name="cono" value="[%cono%]"> [% "<span class='error'>*</span>" IF notsupplied.cono %]</p>
-    <p><b>WHOIS Privacy (for non-trading individuals only):</b>
-    <input type="radio" name="opt-out" value="N" checked />No 
-    <input Type="radio" name="opt-out" value="Y" />Yes</p>
-    [% END %]
-
-    [% IF notsupplied %]
-    <p class="error"> Please complete the fields marked *</p>
+    [% IF error %]
+    <p class="error"> Please correct or complete the fields marked *</p>
     [% END %]

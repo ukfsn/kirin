@@ -13,8 +13,9 @@
         <td> <input name="label" value="[%a.label%]"> </td>
         <td> <select name="customer_field">
             <option value="" > -- </option>
-        [% FOR f = fields %]
-            <option value="[%f.2%]" [% "SELECTED" IF a.customer_field == f.2 %] >[%f.0%]</option>
+        [% FOR f = self.customer.keys %]
+            [% NEXT IF f.match('^(id|status|__triggers|vatexempt|_class_trigger_results|actype|accountscode)$') %]
+            <option value="[%f%]" [% "SELECTED" IF a.customer_field == f %] >[%f%]</option>
         [% END %]
         </select></td>
         <td> <input type="checkbox" name="required" [% "CHECKED" IF a.required %]> </td>
@@ -39,8 +40,9 @@
         <td> <input name="label" > </td>
         <td> <select name="customer_field">
             <option value="" > -- </option>
-        [% FOR f = fields %]
-            <option value="[%f.2%]">[%f.0%]</option>
+        [% FOR f = self.customer.keys %]
+            [% NEXT IF f.match('^(id|status|__triggers|vatexempt|_class_trigger_results|actype|accountscode)$') %]
+            <option value="[%f%]">[%f%]</option>
         [% END %]
         </select></td>
         <td> <input type="checkbox" name="required" > </td>

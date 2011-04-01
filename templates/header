@@ -11,8 +11,8 @@
 <body>
 <div id="header">
     <img src="/static/kirin.png" id="kirinpng">
-    <h1> Kirin </h1>
-    <p> Domain management software </p>
+    <h2> UK Free Software Network </h2>
+    <p> Customer Control Centre </p>
 </div>
 <div id="panel">
 <div class="customerselect">

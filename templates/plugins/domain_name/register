@@ -2,21 +2,27 @@
 
 <form method="post">
 
-<p>Domain name: <input name="domainpart" value="[% oldparams.domainpart
-|html%]"/><select name="tld">
-[% FOR t = tlds %]
-    <option value="[%t.id|html%]"
-        [% "SELECTED" IF oldparams.tld == t.id %]
-    >.[%t.tld|html%] (&pound;[%t.price%] per year)</option>
-[%END%]
-</select>
+<p>Domain name: 
+[% IF available %]
+    [%oldparams.domainpart%].[%tld.tld%]
+    <input type="hidden" name="domainpart" value="[%oldparams.domainpart|html%]">
+    <input type="hidden" name="tld" value="[%tld.id|html%]">
+[% ELSE %]
+    <input name="domainpart" value="[% oldparams.domainpart |html%]"/>
+    <select name="tld">
+        [% FOR t = tlds %]
+            <option value="[%t.id|html%]" [% "SELECTED" IF oldparams.tld == t.id %]>.[%t.tld|html%] (&pound;[%t.price%] per year)</option>
+        [%END%]
+    </select>
+[% END %]
+
 [% IF available %]
     <h3> Registration Period </h3>
 
     <p>Please select the period you wish to register the domain name for: 
 
     <select name="years">
-    [% FOREACH d IN years %]
+    [% FOREACH d IN [tld.min_duration .. tld.max_duration] %]
         <option value="[%d%]" [% "SELECTED" IF oldparams.years == d %]>[%d%] Years</option>
     [% END %]
     </select>
@@ -37,8 +43,8 @@
             Host this domain on our nameservers.
         </p>
         <p> <i>Or</i> supply your own nameservers for this domain:</p>
-        <p> Primary nameserver: <input type="primary_ns"> </p>
-        <p> Secondary nameserver: <input type="secondary_ns"> </p>
+        <p> Primary nameserver: <input type="primary_ns"> [% "<span class='error'>*</span>" IF error.nameservers %]</p>
+        <p> Secondary nameserver: <input type="secondary_ns"> [% "<span class='error'>*</span>" IF error.nameservers %]</p>
 
     <input type="submit" value="Register" name="register">
 [% ELSE %]

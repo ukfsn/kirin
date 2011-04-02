@@ -48,7 +48,7 @@ sub view {
     $rv{db} = $domain;
     eval {$rv{lr} = $handle->domain_info($domain->domain)};
 
-    $mm->respond("plugins/domain_name/".$domain->registrar."/view", %rv);
+    $mm->respond("plugins/domain_name/".$domain->registrar->name."/view", %rv);
 }
 
 sub register {
@@ -280,7 +280,6 @@ sub process {
 
     my $order = Kirin::DB::Orders->retrieve($id);
     if ( ! $order || ! $order->invoice->paid ) { return; }
-
     if ( $order->module ne __PACKAGE__ ) { return; }
 
     my $op = $json->decode($order->parameters);
@@ -307,8 +306,8 @@ sub process {
             Kirin::DB::DomainName->create({
                 customer       => $order->customer,
                 domain         => $domain,
+                tld            => $tld_handler->tld,
                 registrar      => $tld_handler->registrar,
-                tld_handler    => $tld_handler->id,
                 registrant     => $json->encode($op->{rv}->{registrant}),
                 admin          => $json->encode($op->{rv}->{admin}),
                 technical      => $json->encode($op->{rv}->{technical}),
@@ -322,8 +321,6 @@ sub process {
         }
     }
     elsif ( $order->order_type eq 'Domain Transfer' ) {
-
-
     }
     elsif ( $order->order_type eq 'Domain Renewal' ) {
         my $d = Kirin::DB::DomainName->search(domain => $domain,
@@ -361,8 +358,9 @@ sub process {
 sub _get_register_args {
     # Give me back: registrant, admin, technical, nameservers, years
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
-    my %rv;
+    my %rv = ();
 
+    $args{error}{nameservers}++;
     for my $class (qw/reg_class admin_class tech_class/) {
         my $c = $tld_handler->$class;
         my $prefix = 'registrant';
@@ -370,7 +368,7 @@ sub _get_register_args {
         $prefix = 'technical' if $class eq 'tech_class';
         for my $field (map { $_->name } $c->attributes) {
             my $answer = $mm->param($prefix."_".$field);
-            $rv{$prefix}{$field} = $answer;
+            $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
         }
         $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
         $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
@@ -379,16 +377,22 @@ sub _get_register_args {
                     $mm->respond("plugins/domain_name/change_contacts", %args)
                 :   $mm->respond("plugins/domain_name/register", %args);
         }
+        my %dump = %rv;
+        delete $dump{response};
+        use Data::Dumper;
+        warn Dumper \%dump;
     }
 
     if (!$just_contacts) {
-        $args{error}{nameservers}++;
-        if ($mm->param("usedefaultns")) { 
+        if ($mm->param("usedefaultns")) {
+            $args{oldparams}{"usedefaultns"} = 1;
+            $args{error}{nameservers} = undef;
             $rv{nameservers} = [
                 Kirin->args->{primary_dns_server},
                 Kirin->args->{secondary_dns_server},
             ]
         } else {
+            $args{oldparams}{"usedefaultns"} = undef;
             $rv{nameservers} = undef;
             # Check that they're IP addresses.
             my @ns = map { $mm->param($_) } qw(primary_ns secondary_ns);
@@ -413,7 +417,6 @@ sub _get_register_args {
             $args{years} = [ $tld_handler->min_duration .. $tld_handler->max_duration ];
         }
     }
-
     return %rv;
 }
 
@@ -885,8 +888,8 @@ sub sql{q/
 CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     customer integer,
     domain varchar(255) NOT NULL, 
+    tld varchar(10),
     registrar integer,
-    registrar_id varchar(255),
     registrant text,
     admin text,
     technical text,

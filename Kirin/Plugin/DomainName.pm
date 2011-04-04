@@ -14,21 +14,6 @@ use JSON;
 
 my $json = JSON->new->allow_blessed->allow_nonref;
 
-my @fieldmap = (
-    # Label, field for N::DR::S, field from customer profile
-    ["First Name", "firstname", "forename"],
-    ["Last Name", "lastname", "surname"],
-    ["Company", "company", "org"],
-    ["Trading Name", "trad-name", "trad-name"],
-    ["Address", "address", "address"],
-    ["City", "city", "town"],
-    ["State", "state", "county"],
-    ["Postcode", "postcode", "postcode"],
-    ["Country", "country", "country"],
-    ["Email", "email", "email"],
-    ["Phone", "phone", "phone"],
-);
-
 sub list {
     my ($self, $mm) = @_;
     my %args = ();
@@ -369,7 +354,9 @@ sub _get_register_args {
         $prefix = 'admin' if $class eq 'admin_class';
         $prefix = 'technical' if $class eq 'tech_class';
         for my $field (map { $_->name } $c->attributes) {
-            my $answer = $mm->param($prefix."_".$field);
+            my $answer = defined $mm->param($prefix."_".$field) ?
+                $mm->param($prefix."_".$field) :
+                $args{oldparams}{$prefix.'_'.$field};
             $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
         }
         $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
@@ -378,11 +365,8 @@ sub _get_register_args {
             $rv{response} = $just_contacts ?
                     $mm->respond("plugins/domain_name/change_contacts", %args)
                 :   $mm->respond("plugins/domain_name/register", %args);
+            return %rv;
         }
-        my %dump = %rv;
-        delete $dump{response};
-        use Data::Dumper;
-        warn Dumper \%dump;
     }
 
     if (!$just_contacts) {
@@ -481,19 +465,21 @@ sub change_contacts {
     return $rv{response} if exists $rv{response};
 
     my ($domain, $handle) = ($rv{object}, $rv{reghandle});
-    my %args = ( fields => \@fieldmap, domain => $domain );
+    my @tld_handler = Kirin::DB::TldHandler->search(tld => $domain->tld);
+    my %args = ( tld => $tld_handler[0], domain => $domain );
 
     # Massage existing stuff into oldparams
     for my $ctype (qw/registrant admin technical/) {
         my $it = $json->decode($rv{object}->$ctype);
-        for (@fieldmap) {
-            $args{oldparams}{$ctype."_".$_->[1]} = $it->{$_->[1]};
-            $mm->{req}->parameters->{$ctype."_".$_->[1]} = $it->{$_->[1]};
+        my $class = 'reg_class';
+        $class = 'admin_class' if $ctype eq 'admin';
+        $class = 'tech_class' if $ctype eq 'technical';
+        for ($tld_handler[0]->$class->attributes) {
+            $args{oldparams}{$ctype.'_'.$_->name} = $it->{$_->name};
         }
     }
-
-    %rv = $self->_get_register_args($mm, 1, $domain->tld_handler, %args);
-    return $rv{response} if exists $rv{response};
+    %rv = $self->_get_register_args($mm, 1, $tld_handler[0], %args);
+    return $rv{response} if $rv{response};
 
     if ($mm->param("change") and $handle->change_contact(domain => $domain->domain, %rv)) {
         for (qw/registrant admin technical/) {

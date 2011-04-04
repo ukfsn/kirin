@@ -50,6 +50,7 @@ our %validations = (
             if ( ! $_[2]->{registrant}{'co-no'} ) {
                 $_[3]->message('Company Number is required');
                 $_[4]->{error}{'co-no'}++;
+                return;
             }
         }
         return 1;
@@ -99,7 +100,7 @@ sub email {
 
 sub validate_class {
     my ($self, $mm, $class, $prefix, $rv, $args) = @_;
-    my $errors;
+    my $errors = undef;
     for my $a ($class->attributes) {
         my $field = $a->name;
         if ( defined $a->required && ! defined $rv->{$prefix}{$field} ) {

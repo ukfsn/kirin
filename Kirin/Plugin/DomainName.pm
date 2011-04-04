@@ -153,8 +153,8 @@ sub transfer {
     }
 
     $domain =~ s/\.$//;
-    if ($domain =~ /\./) { 
-        $mm->message("Domain name was malformed");
+    if (! Kirin::Validation->domain_name($domain)  ) { 
+        $mm->message("Domain name is not valid");
         return $mm->respond("plugins/domain_name/transfer", %args);
     }
 

@@ -145,8 +145,7 @@ sub transfer {
     my $domain = $mm->param("domainpart");
     my $tld    = $mm->param("tld");
     my %args = (tlds      => [Kirin::DB::TldHandler->retrieve_all],
-                oldparams => $mm->{req}->parameters,
-                fields => \@fieldmap
+                oldparams => $mm->{req}->parameters
                );
     if (!$domain or !$tld) { 
         return $mm->respond("plugins/domain_name/transfer", %args);

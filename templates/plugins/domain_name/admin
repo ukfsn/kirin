@@ -9,7 +9,7 @@
 </form>
 
 <table>
-<tr><th>TLD</th><th>Registrar</th><th>Registrant</th><th>Admin</th><th>Tech</th><th>Price</th><th>Min Years</th><th>Max Years</th></tr>
+<tr><th>TLD</th><th>Registrar</th><th>Registrant</th><th>Admin</th><th>Tech</th><th>Price</th><th>Min Years</th><th>Max Years</th><th>Transfer Auth</th></tr>
 [% FOR p = tlds %]
 <tr>
     <form method="post">
@@ -43,6 +43,7 @@
     <td> <input name="price" value="[%p.price%]" size=5> </td>
     <td> <input name="min_duration" value="[%p.min_duration%]" size=2></td>
     <td> <input name="max_duration" value="[%p.max_duration%]" size=2></td>
+    <td> <input type="checkbox" name="trans_auth" [% "CHECKED" IF p.trans_auth %]></td>
     <td> <input type="submit" value="Edit"> </td>
     </form>
     <form method="post">
@@ -81,6 +82,7 @@
     <td> <input name="price" size=5> </td>
     <td> <input name="min_duration" size=2 ></td>
     <td> <input name="max_duration" size=2></td>
+    <td> <input type="checkbox" name="trans_auth"></td>
     <td> <input type="submit" name="create" value="Create"> </td>
 </tr>
 </table>

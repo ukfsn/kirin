@@ -163,6 +163,7 @@ sub transfer {
         $mm->message("We don't handle that top-level domain");
         return $mm->respond("plugins/domain_name/transfer", %args);
     }
+    $args{tld} = $tld_handler;
     $domain .= ".".$tld_handler->tld;
 
     # Check availability
@@ -625,7 +626,7 @@ sub admin {
             my $handler = Kirin::DB::TldHandler->create({
                 map { $_ => $mm->param($_) }
                     qw/tld registrar reg_class admin_class 
-                       tech_class price min_duration max_duration/
+                       tech_class price min_duration max_duration trans_auth/
             });
             $mm->message("Handler created") if $handler;
         } elsif ($mm->param("edittld")) {
@@ -655,6 +656,13 @@ sub admin {
                 for (qw/tld registrar reg_class admin_class
                         tech_class price min_duration max_duration/) {
                     $handler->$_($mm->param($_));
+                }
+                
+                if ( $mm->param('trans_auth') ) {
+                    $handler->trans_auth($mm->param('trans_auth'));
+                }
+                else {
+                    $handler->trans_auth('');
                 }
                 $handler->update();
             }
@@ -905,7 +913,8 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     tech_class integer,
     price number(5,2),
     min_duration integer,
-    max_duration integer
+    max_duration integer,
+    trans_auth integer
 );
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,

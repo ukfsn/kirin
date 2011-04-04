@@ -626,8 +626,8 @@ sub admin {
             }
             my $handler = Kirin::DB::TldHandler->create({
                 map { $_ => $mm->param($_) }
-                    qw/tld registrar reg_class admin_class 
-                       tech_class price min_duration max_duration trans_auth/
+                    qw/tld registrar reg_class admin_class tech_class price 
+                    min_duration max_duration trans_auth trans_renew/
             });
             $mm->message("Handler created") if $handler;
         } elsif ($mm->param("edittld")) {
@@ -662,9 +662,12 @@ sub admin {
                 if ( $mm->param('trans_auth') ) {
                     $handler->trans_auth($mm->param('trans_auth'));
                 }
-                else {
-                    $handler->trans_auth('');
-                }
+                else { $handler->trans_auth(''); }
+
+                if ( $mm->param('trans_renew') ) {
+                    $handler->trans_renew($mm->param('trans_renew'));
+                } else { $handler->trans_renew(''); }
+                
                 $handler->update();
             }
         } elsif ($mm->param("deletetld")) {
@@ -915,7 +918,8 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     price number(5,2),
     min_duration integer,
     max_duration integer,
-    trans_auth integer
+    trans_auth integer,
+    trans_renew integer
 );
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,

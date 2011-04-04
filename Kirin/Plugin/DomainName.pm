@@ -1,6 +1,7 @@
 package Kirin::Plugin::DomainName;
 use Regexp::Common qw/net number/;
 use Net::DomainRegistration::Simple;
+use Net::Domain::ExpireDate;
 use List::Util qw/sum/;
 use strict;
 use base 'Kirin::Plugin';
@@ -174,6 +175,7 @@ sub transfer {
         return $mm->respond("plugins/domain_name/register", %args);
     }
     else {
+        $args{expires} = expire_date($domain);
         $args{available} = 1;
     }
 

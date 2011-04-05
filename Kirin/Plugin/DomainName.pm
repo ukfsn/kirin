@@ -863,7 +863,9 @@ sub _setup_db {
         domain_class_attr domain_registrar domain_reg_attr/) {
         $self->_ensure_table($table);
     }
-        
+    
+    Kirin::DB::DomainContact->has_a(customer => "Kirin::DB::Customer");
+    Kirin::DB::Customer->has_many(domain_contacts => "Kirin::DB::DomainContact");
     Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
@@ -907,6 +909,13 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
     trans_auth integer,
     trans_renew integer
 );
+
+CREATE TABLE IF NOT EXISTS domain_contact ( id integer primary key not null,
+    customer integer,
+    registry_id varchar(255),
+    name varchar(255),
+    contact text
+);    
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,
     name varchar(255),

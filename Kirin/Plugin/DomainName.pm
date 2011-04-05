@@ -866,6 +866,10 @@ sub _setup_db {
     
     Kirin::DB::DomainContact->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Customer->has_many(domain_contacts => "Kirin::DB::DomainContact");
+    Kirin::DB::DomainRegistrarContact->has_a(domain_contact => "Kirin::DB::DomainContact");
+    Kirin::DB::DomainContact->has_many(registry_id => "Kirin::DB::DomainRegistrarContact");
+    Kirin::DB::DomainRegistrarContact->has_a(registrar => "Kirin::DB::DomainRegistrar");
+
     Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
@@ -880,6 +884,7 @@ sub _setup_db {
 
     Kirin::DB::DomainRegAttr->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::DomainRegistrar->has_many(attributes => "Kirin::DB::DomainRegAttr");
+    Kirin::DB::DomainRegistrar->has_many(registry_contacts => "Kirin::DB::DomainRegistrarContact");
 }
 
 package Kirin::DB::DomainName;
@@ -912,9 +917,15 @@ CREATE TABLE IF NOT EXISTS tld_handler ( id integer primary key not null,
 
 CREATE TABLE IF NOT EXISTS domain_contact ( id integer primary key not null,
     customer integer,
-    registry_id varchar(255),
     name varchar(255),
     contact text
+);
+
+CREATE TABLE IF NOT EXISTS domain_registrar_contact (
+    id integer primary key not null,
+    domain_contact integer,
+    registrar integer,
+    registrar_id varchar(255)
 );    
 
 CREATE TABLE IF NOT EXISTS domain_class ( id integer primary key not null,

@@ -8,6 +8,24 @@
         [% "checked" IF NOT oldparams OR oldparams.copyreg2technical %]
         ></td>
     </tr>
+    <tr>
+    <th>Select Domain Contact</th>
+    <td><select name="registrant_contact">
+    [% FOR c = self.customer.domain_contacts %]
+        <option value="[% c.id|html %]" [% "SELECTED" IF c.id == oldparams.registrant.contact_id %]>[%c.name|html%]</option>
+    [% END %]
+    </select></td>
+    <td><select name="admin_contact">
+    [% FOR c = self.customer.domain_contacts %]
+        <option value="[% c.id|html %]" [% "SELECTED" IF c.id == oldparams.admin.contact_id %]>[%c.name|html%]</option>
+    [% END %]
+    </select></td>
+    <td><select name="technical_contact">
+    [% FOR c = self.customer.domain_contacts %]
+        <option value="[% c.id|html %]" [% "SELECTED" IF c.id == oldparams.technical.contact_id %]>[%c.name|html%]</option>
+    [% END %]
+    </select></td>
+    </tr>
     [% FOR r = tld.reg_class.attributes %]
     <tr>
         <th>[%r.label%]</th>

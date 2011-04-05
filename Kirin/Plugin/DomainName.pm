@@ -860,7 +860,8 @@ sub admin_registrar_attr {
 sub _setup_db {
     my $self = shift;
     for my $table (qw/domain_name tld_handler domain_class 
-        domain_class_attr domain_registrar domain_reg_attr/) {
+        domain_class_attr domain_registrar domain_reg_attr
+        domain_contact domain_registrar_contact/) {
         $self->_ensure_table($table);
     }
     

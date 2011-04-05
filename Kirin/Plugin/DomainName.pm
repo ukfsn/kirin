@@ -353,14 +353,21 @@ sub _get_register_args {
         my $prefix = 'registrant';
         $prefix = 'admin' if $class eq 'admin_class';
         $prefix = 'technical' if $class eq 'tech_class';
-        for my $field (map { $_->name } $c->attributes) {
-            my $answer = defined $mm->param($prefix."_".$field) ?
-                $mm->param($prefix."_".$field) :
-                $args{oldparams}{$prefix.'_'.$field};
-            $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
+
+        if ( $mm->param($prefix.'_contact_id') ) {
+            my $contact = Kirin::DB::DomainContact->retrieve($mm->param($prefix.'_contact_id'));
+            $rv{$prefix} = $json->decode($contact->contact);
         }
-        $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
-        $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
+        else {
+            for my $field (map { $_->name } $c->attributes) {
+                my $answer = defined $mm->param($prefix."_".$field) ?
+                    $mm->param($prefix."_".$field) :
+                    $args{oldparams}{$prefix.'_'.$field};
+                $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
+            }
+            $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
+            $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
+        }
         if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%rv, \%args) ) {
             $rv{response} = $just_contacts ?
                     $mm->respond("plugins/domain_name/change_contacts", %args)

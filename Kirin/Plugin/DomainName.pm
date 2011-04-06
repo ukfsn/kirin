@@ -342,6 +342,75 @@ sub process {
     }
 }
 
+sub contacts {
+    my ($self, $mm, $id) = @_;
+    my %args = ();
+
+    # Build the list of possible contact fields
+    my %fields = ();
+    my @fields = ();
+    for my $class ( Kirin::DB::DomainClass->retrieve_all() ) {
+        for my $a ($class->attributes) {
+            next if $fields{$a->name};
+            push @fields, $a->name;
+            $fields{$a->name} = $a->validation_type;
+        }
+    }
+
+    my $contact = Kirin::DB::DomainContact->retrieve($id);
+    if ( ! $contact ) {
+        # Create - provide a form that contains which fields?
+
+    }
+    if ( $contact && $contact->customer == $mm->{customer} ) {
+        if ( $mm->param('edit') ) {
+            my %c = ();
+            my $params = $mm->{req}->parameters();
+            $args{errors} = undef;
+            for my $k (keys %$params) {
+                if ( $k =~ /^contact_(.*)$/ ) {
+                    my $field = $1;
+                    next unless $fields{$field};
+                    if ( ! Kirin::Validation->valid_thing($fields{$field},
+                            $mm->param('contact_'.$field ) ) ) {
+                        $mm->message($a->label.' is not valid');
+                        $args{errors}{$field}++;
+                    }
+                    $args{oldparams}{$field} = $mm->param('contact_'.$field);
+                    $c{$field} = $mm->param('contact_'.$field);
+                }
+            }
+            goto done if $args{errors};
+            $contact->contact($json->encode(%c));
+            $contact->update();
+            $args{contact} = $contact;
+            goto done;
+        }
+        elsif ( $mm->param('delete') && $contact->customer == $mm->{customer} ) {
+            # first check whether it is being used 
+            my @domains = Kirin::DB::DomainName->retrieve_from_sql(qq|
+                registrant => $contact->id OR
+                admin => $contact->id OR
+                technical => $contact->id|
+                );
+            if ( scalar @domains > 0 ) {
+                $mm->message("You cannot delete that domain contact. It is used on the following domains");
+                foreach (@domains) {
+                    $mm->message($_->domain);
+                }
+                goto done;
+            }
+            else {
+                $contact->delete;
+            }
+        }
+    }
+
+    done:
+    $mm->respond('plugins/domain_name/contacts', contact => $contact);
+}
+        
+
 sub _get_register_args {
     # Give me back: registrant, admin, technical, nameservers, years
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;

@@ -98,6 +98,11 @@ sub email {
     return $validations{'Email Address'}->($email, undef);
 }
 
+sub valid_thing {
+    my ($self, $type, $data) = @_;
+    return $validation{$type}->($data);
+}
+
 sub validate_class {
     my ($self, $mm, $class, $prefix, $rv, $args) = @_;
     my $errors = undef;

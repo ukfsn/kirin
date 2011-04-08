@@ -359,27 +359,18 @@ sub contacts {
 
     my $contact = Kirin::DB::DomainContact->retrieve($id);
     if ( ! $contact ) {
-        # Create - provide a form that contains which fields?
-
+        my %c = $self->_get_contact_details($mm, \%fields, \%args);
+        goto done if $args{errors};
+        $contact = Kirin::DB::DomainContact->insert({
+            customer => $mm->{customer},
+            name => $mm->param('name'),
+            contact => $json->encode(%c)
+        });
+        $args{contact} = $contact;
     }
     if ( $contact && $contact->customer == $mm->{customer} ) {
         if ( $mm->param('edit') ) {
-            my %c = ();
-            my $params = $mm->{req}->parameters();
-            $args{errors} = undef;
-            for my $k (keys %$params) {
-                if ( $k =~ /^contact_(.*)$/ ) {
-                    my $field = $1;
-                    next unless $fields{$field};
-                    if ( ! Kirin::Validation->valid_thing($fields{$field},
-                            $mm->param('contact_'.$field ) ) ) {
-                        $mm->message($a->label.' is not valid');
-                        $args{errors}{$field}++;
-                    }
-                    $args{oldparams}{$field} = $mm->param('contact_'.$field);
-                    $c{$field} = $mm->param('contact_'.$field);
-                }
-            }
+            my %c = $self->_get_contact_details($mm, \%fields, \%args);
             goto done if $args{errors};
             $contact->contact($json->encode(%c));
             $contact->update();
@@ -409,7 +400,32 @@ sub contacts {
     done:
     $mm->respond('plugins/domain_name/contacts', contact => $contact);
 }
-        
+
+sub _get_contact_details {
+    my ($self, $mm, $fields, $args) = @_;
+    my %c = ();
+    my $params = $mm->{req}->parameters();
+    $args->{errors} = undef;
+
+    if ( ! $mm->param('name') ) {
+        $args->{errors}{name}++;
+        $mm->message('Please provide a name for this contact');
+    }
+    for my $k (keys %$params) {
+        if ( $k =~ /^contact_(.*)$/ ) {
+            my $field = $1;
+            next unless $fields->{$field};
+            if ( ! Kirin::Validation->valid_thing($fields->{$field},
+                    $mm->param('contact_'.$field ) ) ) {
+                $mm->message($a->label.' is not valid');
+                $args->{errors}{$field}++;
+            }
+            $args->{oldparams}{$field} = $mm->param('contact_'.$field);
+            $c{$field} = $mm->param('contact_'.$field);
+        }
+    }
+    return %c;
+}
 
 sub _get_register_args {
     # Give me back: registrant, admin, technical, nameservers, years

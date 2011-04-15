@@ -356,6 +356,7 @@ sub contacts {
             $fields{$a->name} = $a->validation_type;
         }
     }
+    $args{fields} = \@fields;
 
     my $contact = Kirin::DB::DomainContact->retrieve($id);
     if ( ! $contact ) {
@@ -398,7 +399,7 @@ sub contacts {
     }
 
     done:
-    $mm->respond('plugins/domain_name/contacts', contact => $contact);
+    $mm->respond('plugins/domain_name/contacts', %args);
 }
 
 sub _get_contact_details {
@@ -450,15 +451,22 @@ sub _get_register_args {
                     $args{oldparams}{$prefix.'_'.$field};
                 $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
             }
+            my $contact = Kirin::DB::DomainContact->insert({
+                customer => $mm->{customer},
+                name => $mm->param('name'),
+                contact => $json->encode(%c)
+            });
             $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
             $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
         }
+
         if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%rv, \%args) ) {
             $rv{response} = $just_contacts ?
                     $mm->respond("plugins/domain_name/change_contacts", %args)
                 :   $mm->respond("plugins/domain_name/register", %args);
             return %rv;
         }
+        
     }
 
     if (!$just_contacts) {
@@ -639,15 +647,6 @@ sub revoke {
     # Something went wrong
     $mm->message("Your request could not be processed");
     return $mm->respond("plugins/domain_name/revoke", domain => $domain);
-}
-
-sub _setup_db {
-    shift->_ensure_table("domain_name");
-    Kirin::DB::DomainName->has_a(tld_handler => "Kirin::DB::TldHandler");
-    Kirin::DB::DomainName->has_a(expires => 'Time::Piece',
-      inflate => sub { Time::Piece->strptime(shift, "%Y-%m-%d") },
-      deflate => 'ymd',
-    );
 }
 
 sub delete {
@@ -957,14 +956,22 @@ sub _setup_db {
         $self->_ensure_table($table);
     }
     
+    Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
+    Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
+    Kirin::DB::DomainName->has_a(tld_handler => "Kirin::DB::TldHandler");
+    Kirin::DB::DomainName->has_a(registrant => "Kirin::DB::DomainContact");
+    Kirin::DB::DomainName->has_a(admin => "Kirin::DB::DomainContact");
+    Kirin::DB::DomainName->has_a(technical => "Kirin::DB::DomainContact");
+    Kirin::DB::DomainName->has_a(expires => 'Time::Piece',
+      inflate => sub { Time::Piece->strptime(shift, "%Y-%m-%d") },
+      deflate => 'ymd',
+    );
+
     Kirin::DB::DomainContact->has_a(customer => "Kirin::DB::Customer");
     Kirin::DB::Customer->has_many(domain_contacts => "Kirin::DB::DomainContact");
     Kirin::DB::DomainRegistrarContact->has_a(domain_contact => "Kirin::DB::DomainContact");
     Kirin::DB::DomainContact->has_many(registry_id => "Kirin::DB::DomainRegistrarContact");
     Kirin::DB::DomainRegistrarContact->has_a(registrar => "Kirin::DB::DomainRegistrar");
-
-    Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
-    Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
 
     Kirin::DB::TldHandler->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::TldHandler->has_a(reg_class => "Kirin::DB::DomainClass");
@@ -988,9 +995,9 @@ CREATE TABLE IF NOT EXISTS domain_name ( id integer primary key not null,
     domain varchar(255) NOT NULL, 
     tld varchar(10),
     registrar integer,
-    registrant text,
-    admin text,
-    technical text,
+    registrant integer,
+    admin integer,
+    technical integer,
     nameserverlist varchar(255),
     expires datetime
 );

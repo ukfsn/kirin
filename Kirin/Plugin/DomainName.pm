@@ -74,6 +74,7 @@ sub register {
         $args{available} = 1;
     }
 
+    $args{contacts} = Kirin::DB::DomainContact->retrieve_all();
     if (!$mm->param("register")) {
         $args{years} = [ $tld_handler->min_duration .. $tld_handler->max_duration ];
         return $mm->respond("plugins/domain_name/register", %args);
@@ -433,31 +434,32 @@ sub _get_register_args {
     my ($self, $mm, $just_contacts, $tld_handler, %args) = @_;
     my %rv = ();
 
-    $args{error}{nameservers}++;
     for my $class (qw/reg_class admin_class tech_class/) {
         my $c = $tld_handler->$class;
         my $prefix = 'registrant';
         $prefix = 'admin' if $class eq 'admin_class';
         $prefix = 'technical' if $class eq 'tech_class';
+        my $contact = undef;
 
         if ( $mm->param($prefix.'_contact_id') ) {
-            my $contact = Kirin::DB::DomainContact->retrieve($mm->param($prefix.'_contact_id'));
+            $contact = Kirin::DB::DomainContact->retrieve($mm->param($prefix.'_contact_id'));
             $rv{$prefix} = $json->decode($contact->contact);
         }
-        else {
-            for my $field (map { $_->name } $c->attributes) {
-                my $answer = defined $mm->param($prefix."_".$field) ?
-                    $mm->param($prefix."_".$field) :
-                    $args{oldparams}{$prefix.'_'.$field};
-                $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
-            }
-            my $contact = Kirin::DB::DomainContact->insert({
+        # If customer provides additional/updated info...
+        for my $field (map { $_->name } $c->attributes) {
+            my $answer = defined $mm->param($prefix."_".$field) ?
+                $mm->param($prefix."_".$field) :
+                $args{oldparams}{$prefix.'_'.$field};
+            $rv{$prefix}{$field} = $answer if ! defined $rv{$prefix}{$field};
+        }
+        $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
+        $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
+        if ( ! $contact ) {
+            $contact = Kirin::DB::DomainContact->insert({
                 customer => $mm->{customer},
                 name => $mm->param('name'),
-                contact => $json->encode(%c)
+                contact => $json->encode($rv{$prefix})
             });
-            $rv{admin} = $rv{registrant} if $mm->param("copyreg2admin");
-            $rv{technical} = $rv{registrant}  if $mm->param("copyreg2technical");
         }
 
         if ( ! Kirin::Validation->validate_class($mm, $c, $prefix, \%rv, \%args) ) {
@@ -466,13 +468,12 @@ sub _get_register_args {
                 :   $mm->respond("plugins/domain_name/register", %args);
             return %rv;
         }
-        
+        $rv{$prefix} = $contact->id;
     }
 
     if (!$just_contacts) {
         if ($mm->param("usedefaultns")) {
             $args{oldparams}{"usedefaultns"} = 1;
-            $args{error}{nameservers} = undef;
             $rv{nameservers} = [
                 Kirin->args->{primary_dns_server},
                 Kirin->args->{secondary_dns_server},
@@ -480,11 +481,11 @@ sub _get_register_args {
         } else {
             $args{oldparams}{"usedefaultns"} = undef;
             $rv{nameservers} = undef;
-            # Check that they're IP addresses.
+            # Check that they're valid hosts or IPs.
             my @ns = map { $mm->param($_) } qw(primary_ns secondary_ns);
             my $ok = 1;
             for (@ns) {
-                if ($_ !~ /^$RE{net}{domain}{-nospace}$/) { 
+                if ( ! Kirin::Validation->valid_thing('Host Name', $_) ) {
                     $mm->message("Nameserver is not valid");
                     $mm->respond("plugins/domain_name/register", %args);
                     $args{error}{nameservers}++;
@@ -958,7 +959,6 @@ sub _setup_db {
     
     Kirin::DB::DomainName->has_a(registrar => "Kirin::DB::DomainRegistrar");
     Kirin::DB::DomainName->has_a(customer => "Kirin::DB::Customer");
-    Kirin::DB::DomainName->has_a(tld_handler => "Kirin::DB::TldHandler");
     Kirin::DB::DomainName->has_a(registrant => "Kirin::DB::DomainContact");
     Kirin::DB::DomainName->has_a(admin => "Kirin::DB::DomainContact");
     Kirin::DB::DomainName->has_a(technical => "Kirin::DB::DomainContact");

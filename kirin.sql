@@ -79,6 +79,15 @@ CREATE TABLE jobqueue (
     parameters text
 );
 
+CREATE TABLE event_log (
+    id integer primary key not null,
+    customer integer,
+    plugin varchar(255),
+    timestamp date,
+    event varchar(255),
+    details varchar(255)
+);
+
 CREATE TABLE constraints (
     id integer primary key not null,
     name varchar(255),

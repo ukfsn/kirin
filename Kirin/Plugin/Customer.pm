@@ -152,6 +152,23 @@ sub bill_for {
     return $invoice;
 }
 
+sub log {
+    my ($self, %event) = @_;
+    if ( ! $event{event} || ! $event{plugin} ) {
+        return;
+    }
+    my $log = Kirin::DB::EventLog->insert(
+        customer => $self,
+        plugin => $event{plugin},
+        timestamp => Time::Piece->new(),
+        event => $event{event},
+        details => defined $event{details} ? $event{details} : ''
+    );
+
+    return if ! $log;
+    return 1;
+}
+
 sub find_user { Kirin::DB::User->search(customer => shift->id); }
 
 1;

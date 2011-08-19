@@ -111,6 +111,7 @@ sub order {
             $mm->message('Please select from the available services');
             goto stage_1;
         }
+        $mm->session->set("service", $service->id);
 
         my $crd = defined $mm->param('crd') ? $mm->param('crd'): $mm->param($mm->param('service').'_crd');
 
@@ -118,10 +119,43 @@ sub order {
             $mm->message('We are unable to process an order for the selected date. Please select another date.');
             goto stage_1;
         }
+        $mm->session->set("crd", $crd);
 
         my $options = { };
         for my $o ( $service->class->options ) {
             $options->{$o->code}++ if $mm->param($o->code);
+        }
+        $mm->session->set('options', $options);
+
+        return $mm->respond('plugins/broadband/terms-and-conditions', order => {
+            service => $service,
+        });
+
+    stage_3:
+
+        if (!$mm->param('tc_accepted')) { # Back you go!
+            $mm->param('Please accept the terms and conditions to complete your order'); 
+            goto stage_2;
+        }
+
+        my $service = Kirin::DB::BroadbandService->retrieve($mm->session->get("service"));
+        my $summary = {
+            service => $service,
+            cli     => $mm->session->get("cli"),
+            crd     => $mm->session->get("crd"),
+            options => $mm->session->get("options")
+        };
+        $summary->{mac} = $mm->session->get("mac") if $mm->session->get("mac");
+
+        return $mm->respond('plugins/broadband/order-summary', {
+            order => $summary,
+            vatrate => Kirin::Plugin->_get_vat_rate()
+        } );
+
+    stage_4:
+        if (!$mm->param('order_confirmed')) {
+            $mm->param('We cannot process an order until you confirm the order details');
+            goto stage_3;
         }
 
         my $order = Kirin::DB::Orders->insert( {
@@ -133,8 +167,8 @@ sub order {
                 service     => $service->id,
                 clid        => $mm->session->get("clid"),
                 mac         => $mm->session->get("mac"),
-                crd         => $crd,
-                options     => $options
+                crd         => $mm->session->get("crd"),
+                options     => $mm->session->get("options")
             })
         });
         if ( ! $order ) {
@@ -148,49 +182,13 @@ sub order {
             return $mm->respond("plugins/broadband/error");
         }
 
-        return $mm->respond('plugins/broadband/terms-and-conditions', order => {
-            id => $order->id,
-            service => $service,
-        });
-
-    stage_3:
-
-        if (!$mm->param('tc_accepted')) { # Back you go!
-            $mm->param('Please accept the terms and conditions to complete your order'); 
-            goto stage_2;
-        }
-        my $id = $mm->param('order');
-        goto stage_1 unless $id =~ /^\d+$/;
-
-        my $order = Kirin::DB::Orders->retrieve($id);
-        if ( ! $order ) {
-            $mm->message('Our system is unable to retrieve details of your order');
-            goto stage_1;
-        }
-        my $summary = $json->decode($order->parameters);
-        $summary->{id} = $order->id;
-
-        return $mm->respond('plugins/broadband/order-summary', order => $summary);
-
-    stage_4:
-        if (!$mm->param('order_confirmed')) {
-            $mm->param('We cannot process an order until you confirm the order details');
-            goto stage_3;
-        }
-
-        my $order = Kirin::DB::Orders->retrieve($mm->param('order'));
-        if ( ! $order ) {
-            $mm->message('Our system is unable to retrieve details of your order');
-            goto stage_1;
-        }
         $order->set_status("Ready");
-        my $op = $json->decode($order->parameters);
 
-        my $service = Kirin::DB::BroadbandService->retrieve($op->service);
+        my $service = Kirin::DB::BroadbandService->retrieve($mm->session->get("service"));
         if ( $service->billed ) {
             my $price = $service->price;
             my $invoice = $mm->{customer}->bill_for({
-                description => 'Broadband Order: '.$service->name.' on '.$op->{clid},
+                description => 'Broadband Order: '.$service->name.' on '.$mm->session->get("cli"),
                 cost => $price
             });
             if ( ! $invoice ) {
@@ -198,7 +196,7 @@ sub order {
                     severity    => "error",
                     customer    => $mm->{customer},
                     context     => "Trying to create broadband invoice",
-                    message     => "Cannot create invoice for broadband ".$service->name.' on '.$op->{clid}
+                    message     => "Cannot create invoice for broadband ".$service->name.' on '.$mm->session->get("cli")
                 );
                 $mm->message("Our system is unable to record the details of your order.");
                 return $mm->respond("plugins/broadband/error");
@@ -207,10 +205,10 @@ sub order {
                 $invoice->add_line_item(description => "Broadband Activation Charge", cost => $service->class->activation);
             }
 
-            if ( $mac ) {
+            if ( $mm->session->get("mac") ) {
                 my $search = Kirin::DB::BroadbandSearches->search( {
                     customer => $mm->{customer},
-                    telno => $op->{clid}
+                    telno => $mm->session->get("cli")
                 } );
                 my $avail = $json->decode($search->first->result);
 
@@ -224,7 +222,7 @@ sub order {
                 }
             }
 
-            for my $o (keys %{$op->options}) {
+            for my $o (keys %{$mm->session->get("options")}) {
                 next unless ($o->price > 0 || $o->setup > 0);
                 if ($o->setup > 0) {
                     $invoice->add_line_item(description => $o->option . " Setup Charge", cost => $o->setup);

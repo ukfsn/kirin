@@ -141,7 +141,7 @@ sub order {
         my $service = Kirin::DB::BroadbandService->retrieve($mm->session->get("service"));
         my $summary = {
             service => $service,
-            cli     => $mm->session->get("cli"),
+            clid    => $mm->session->get("clid"),
             crd     => $mm->session->get("crd"),
             options => $mm->session->get("options")
         };
@@ -176,7 +176,7 @@ sub order {
                 severity    => "error",
                 customer    => $mm->{customer},
                 context     => "Trying to create order for broadband",
-                message     => "Cannot create order entry for broadband ".$service->name.' on '.$clid
+                message     => "Cannot create order entry for broadband ".$service->name.' on '.$mm->session->get("clid")
             );
             $mm->message("Our system is unable to record the details of your order.");
             return $mm->respond("plugins/broadband/error");
@@ -188,7 +188,7 @@ sub order {
         if ( $service->billed ) {
             my $price = $service->price;
             my $invoice = $mm->{customer}->bill_for({
-                description => 'Broadband Order: '.$service->name.' on '.$mm->session->get("cli"),
+                description => 'Broadband Order: '.$service->name.' on '.$mm->session->get("clid"),
                 cost => $price
             });
             if ( ! $invoice ) {

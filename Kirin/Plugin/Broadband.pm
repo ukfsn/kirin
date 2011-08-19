@@ -251,7 +251,7 @@ sub process {
         return;
     }
     if ( $order->module ne __PACKAGE__ ) { return; }
-    return if ( $order->status ne 'Ready' || $order->status ne 'Invoiced' );
+    return if ( $order->status ne 'Ready' || $order->status ne 'Paid' );
     
     my $op = $json->decode($order->parameters);
     my $customer = Kirin::DB::Customer->retrieve($op->customer);
